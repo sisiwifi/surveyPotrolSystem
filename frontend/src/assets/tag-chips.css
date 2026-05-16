@@ -1,0 +1,66 @@
+.tag-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  align-items: center;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.42rem;
+  padding: 0.16rem 0.56rem;
+  border-radius: 999px;
+  border: 1px solid var(--tag-chip-border-color, var(--tag-chip-color, #64748b));
+  color: var(--tag-chip-color, #334155);
+  background: var(--tag-chip-bg, rgba(100, 116, 139, 0.4));
+  font-size: 0.76rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.tag-chip--interactive {
+  appearance: none;
+  cursor: pointer;
+  transition: filter 140ms ease, box-shadow 140ms ease, transform 140ms ease;
+}
+
+.tag-chip--interactive:hover {
+  filter: saturate(1.05) brightness(0.98);
+}
+
+.tag-chip--interactive:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(191, 219, 254, 0.9);
+}
+
+.tag-chip--add {
+  min-width: 1.36rem;
+  padding: 0.14rem 0.44rem;
+  border-color: rgba(148, 163, 184, 0.5);
+  background: rgba(226, 232, 240, 0.55);
+  color: #475569;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, color 140ms ease, opacity 140ms ease;
+}
+
+.tag-chip--add:hover:not(:disabled) {
+  border-color: rgba(100, 116, 139, 0.55);
+  background: rgba(226, 232, 240, 0.88);
+  color: #0f172a;
+}
+
+.tag-chip--add:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tag-chip-list--compact .tag-chip {
+  min-height: 1.36rem;
+  padding: 0.14rem 0.5rem;
+  font-size: 0.72rem;
+}

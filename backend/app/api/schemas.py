@@ -1,0 +1,501 @@
+from datetime import datetime
+from typing import List, Optional
+
+from pydantic import BaseModel, Field
+
+
+class ImportResponse(BaseModel):
+    imported: List[str]
+    skipped: List[str]
+
+
+class AnimationMeta(BaseModel):
+    frame_count: int = 1
+    format: Optional[str] = None
+
+
+class MonthGroup(BaseModel):
+    group: str        # e.g. "2025-3"
+    year: int
+    month: int
+    count: int
+    thumb_url: str    # URL path for the first image thumbnail
+    cache_thumb_url: Optional[str] = None
+    id: Optional[int] = None
+    preview_original_url: Optional[str] = None
+    is_animated: bool = False
+    animation_meta: Optional[AnimationMeta] = None
+
+
+class YearGroup(BaseModel):
+    year: int
+    months: List[MonthGroup]
+
+
+class DateViewResponse(BaseModel):
+    years: List[YearGroup]
+
+
+class DateItem(BaseModel):
+    type: str               # "image" or "album"
+    name: str               # bare filename or sub-directory name
+    thumb_url: str          # /thumbnails/<hash>.webp (may be empty string)
+    count: Optional[int] = None          # total images inside an album
+    id: Optional[int] = None             # ImageAsset.id
+    category_id: Optional[int] = None
+    cache_thumb_url: Optional[str] = None  # /cache/<hash>_cache.webp when generated
+    width: Optional[int] = None
+    height: Optional[int] = None
+    public_id: Optional[str] = None      # Album.public_id for album items
+    album_path: Optional[str] = None     # Album.path for URL routing (e.g. "2024-07/vacation")
+    sort_ts: Optional[int] = None        # Unix timestamp for date sorting
+    tags: List[int] = Field(default_factory=list)
+    file_size: Optional[int] = None
+    imported_at: Optional[datetime] = None
+    file_created_at: Optional[datetime] = None
+    photo_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+    media_index: Optional[int] = None
+    media_rel_path: Optional[str] = None
+    is_cover: bool = False
+    is_animated: bool = False
+    animation_meta: Optional[AnimationMeta] = None
+
+
+class DateItemsResponse(BaseModel):
+    date_group: str
+    items: List[DateItem]
+
+
+class GalleryOverviewResponse(BaseModel):
+    scope: str = "all"
+    total: int = 0
+    items: List[DateItem] = Field(default_factory=list)
+
+
+class GalleryItemsResponse(BaseModel):
+    scope: str = "all"
+    items: List[DateItem] = Field(default_factory=list)
+
+
+# ── Cache generation ──────────────────────────────────────────────────────────
+
+class CacheRequest(BaseModel):
+    image_ids: List[int] = Field(default_factory=list)
+    ordered_image_ids: List[int] = Field(default_factory=list)
+    generation: Optional[int] = None
+    page_token: Optional[str] = None
+    sort_signature: Optional[str] = None
+    direction: str = "none"
+    anchor_image_id: Optional[int] = None
+    anchor_item_key: Optional[str] = None
+    anchor_offset: float = 0.0
+
+
+class CacheStartResponse(BaseModel):
+    task_id: str
+    generation: Optional[int] = None
+
+
+class CacheStatusItem(BaseModel):
+    id: int
+    cache_thumb_url: Optional[str] = None
+
+
+class CacheStatusResponse(BaseModel):
+    status: str                  # "running" | "done" | "error"
+    items: List[CacheStatusItem] = Field(default_factory=list)
+    next_cursor: int = 0
+    generation: Optional[int] = None
+
+
+class ImageMetaItem(BaseModel):
+    id: int
+    name: str
+    category_id: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    file_size: Optional[int] = None
+    imported_at: Optional[datetime] = None
+    file_created_at: Optional[datetime] = None
+    tags: List[int] = Field(default_factory=list)
+    thumb_url: str = ""
+    cache_thumb_url: Optional[str] = None
+    media_paths: List[str] = Field(default_factory=list)
+    is_animated: bool = False
+    animation_meta: Optional[AnimationMeta] = None
+
+
+class ImageMetaResponse(BaseModel):
+    items: List[ImageMetaItem]
+
+
+class ImageMetadataUpdateTarget(BaseModel):
+    image_id: int
+    media_rel_path: Optional[str] = None
+
+
+class ImageMetadataUpdateRequest(BaseModel):
+    items: List[ImageMetadataUpdateTarget] = Field(default_factory=list)
+    name: Optional[str] = None
+    category_id: Optional[int] = None
+    file_created_at: Optional[datetime] = None
+
+
+class ImageMetadataUpdateItem(BaseModel):
+    image_id: int
+    source_media_rel_path: Optional[str] = None
+    media_rel_path: Optional[str] = None
+    name: str = ""
+    category_id: Optional[int] = None
+    file_created_at: Optional[datetime] = None
+    renamed: bool = False
+    moved: bool = False
+
+
+class ImageMetadataUpdateResponse(BaseModel):
+    items: List[ImageMetadataUpdateItem] = Field(default_factory=list)
+    updated_count: int = 0
+    renamed_count: int = 0
+    moved_count: int = 0
+
+
+class ViewerPreferenceRequest(BaseModel):
+    viewer_id: Optional[str] = None
+
+
+class CacheThumbSettingRequest(BaseModel):
+    short_side_px: int
+
+
+class CacheThumbSettingResponse(BaseModel):
+    short_side_px: int
+    default_short_side_px: int
+    min_short_side_px: int
+    max_short_side_px: int
+
+
+class MonthCoverSettingRequest(BaseModel):
+    size_px: int
+
+
+class MonthCoverSettingResponse(BaseModel):
+    size_px: int
+    default_size_px: int
+    min_size_px: int
+    max_size_px: int
+
+
+class PageConfigRequest(BaseModel):
+    browse_mode: str = "scroll"
+    scroll_window_size: int = 100
+
+
+class PageConfigResponse(BaseModel):
+    browse_mode: str
+    scroll_window_size: int = 100
+    default_browse_mode: str = "scroll"
+    default_scroll_window_size: int = 100
+
+
+class AdminRefreshRequest(BaseModel):
+    image_ids: List[int] = Field(default_factory=list)
+    trash_entry_ids: List[int] = Field(default_factory=list)
+    repair_cache: bool = False
+
+
+class TagMatchSettingRequest(BaseModel):
+    enabled: bool = True
+    noise_tokens: List[str] = Field(default_factory=list)
+    min_token_length: int = 2
+    drop_numeric_only: bool = True
+
+
+class TagMatchSettingResponse(BaseModel):
+    enabled: bool
+    noise_tokens: List[str] = Field(default_factory=list)
+    min_token_length: int
+    drop_numeric_only: bool
+    sort_mode: str = "name_asc"
+
+
+class ImageTagMatchRequest(BaseModel):
+    image_ids: List[int] = Field(default_factory=list)
+    apply: bool = True
+    merge_mode: str = "append_unique"
+    include_tokens: bool = False
+
+
+class TagBriefItem(BaseModel):
+    id: int
+    name: str
+    display_name: str = ""
+    color: str = ""
+    border_color: str = ""
+    background_color: str = ""
+
+
+class SearchImageItem(BaseModel):
+    id: int
+    name: str
+    category_id: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    tags: List[int] = Field(default_factory=list)
+    thumb_url: str = ""
+    cache_thumb_url: Optional[str] = None
+    media_rel_path: Optional[str] = None
+    date_group: Optional[str] = None
+    quick_hash: Optional[str] = None
+    matched_by: List[str] = Field(default_factory=list)
+    matched_tags: List[TagBriefItem] = Field(default_factory=list)
+    is_animated: bool = False
+    animation_meta: Optional[AnimationMeta] = None
+
+
+class SearchImageResponse(BaseModel):
+    query: str
+    requested_mode: str = "auto"
+    resolved_mode: str = "auto"
+    limit: int = 120
+    total: int = 0
+    source_media_rel_path: Optional[str] = None
+    quick_hash: Optional[str] = None
+    included_tags: List[TagBriefItem] = Field(default_factory=list)
+    items: List[SearchImageItem] = Field(default_factory=list)
+
+
+class ImageTagMatchItem(BaseModel):
+    image_id: int
+    filename: str = ""
+    tokens: List[str] = Field(default_factory=list)
+    matched_tag_ids: List[int] = Field(default_factory=list)
+    matched_tags: List[TagBriefItem] = Field(default_factory=list)
+    before_tag_ids: List[int] = Field(default_factory=list)
+    after_tag_ids: List[int] = Field(default_factory=list)
+    changed: bool = False
+
+
+class ImageTagMatchResponse(BaseModel):
+    items: List[ImageTagMatchItem] = Field(default_factory=list)
+    common_tag_ids: List[int] = Field(default_factory=list)
+    common_tags: List[TagBriefItem] = Field(default_factory=list)
+    multi_display: str = "empty"
+    applied_count: int = 0
+
+
+class ImageTagApplyRequest(BaseModel):
+    image_ids: List[int] = Field(default_factory=list)
+    tag_ids: List[int] = Field(default_factory=list)
+    merge_mode: str = "append_unique"
+
+
+class ImageTagApplyItem(BaseModel):
+    image_id: int
+    before_tag_ids: List[int] = Field(default_factory=list)
+    after_tag_ids: List[int] = Field(default_factory=list)
+    changed: bool = False
+
+
+class ImageTagApplyResponse(BaseModel):
+    items: List[ImageTagApplyItem] = Field(default_factory=list)
+    common_tag_ids: List[int] = Field(default_factory=list)
+    common_tags: List[TagBriefItem] = Field(default_factory=list)
+    multi_display: str = "empty"
+    applied_count: int = 0
+
+
+# ── Album views ───────────────────────────────────────────────────────────────
+
+class BreadcrumbItem(BaseModel):
+    public_id: str
+    title: str
+
+
+class AlbumItem(BaseModel):
+    type: str                            # "image" or "album"
+    name: str
+    thumb_url: str = ""
+    count: Optional[int] = None
+    id: Optional[int] = None             # ImageAsset.id (for images)
+    category_id: Optional[int] = None
+    cache_thumb_url: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    public_id: Optional[str] = None      # Album.public_id (for sub-albums)
+    album_path: Optional[str] = None     # Album.path for URL routing
+    sort_ts: Optional[int] = None        # Unix timestamp for date sorting
+    tags: List[int] = Field(default_factory=list)
+    file_size: Optional[int] = None
+    imported_at: Optional[datetime] = None
+    file_created_at: Optional[datetime] = None
+    photo_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+    media_index: Optional[int] = None
+    media_rel_path: Optional[str] = None
+    is_cover: bool = False
+    is_animated: bool = False
+    animation_meta: Optional[AnimationMeta] = None
+
+
+class AlbumInfo(BaseModel):
+    public_id: str
+    title: str
+    description: Optional[str] = None
+    date_group: Optional[str] = None
+    photo_count: int = 0
+    subtree_photo_count: int = 0
+    cover_photo_id: Optional[int] = None
+    parent_public_id: Optional[str] = None
+    ancestors: List[BreadcrumbItem] = []
+
+
+class AlbumDetailResponse(BaseModel):
+    album: AlbumInfo
+    items: List[AlbumItem]
+
+
+class CoverSelectionRequest(BaseModel):
+    image_id: int
+
+
+class CoverSelectionResponse(BaseModel):
+    public_id: str
+    cover_photo_id: Optional[int] = None
+    updated_at: Optional[datetime] = None
+
+
+class CollectionOverviewItem(BaseModel):
+    id: int
+    public_id: str = ""
+    title: str
+    description: str = ""
+    photo_count: int = 0
+    thumb_url: str = ""
+    cache_thumb_url: Optional[str] = None
+    preview_original_url: Optional[str] = None
+    cover_photo_id: Optional[int] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    updated_at: Optional[datetime] = None
+    is_animated: bool = False
+    animation_meta: Optional[AnimationMeta] = None
+
+
+class CollectionOverviewResponse(BaseModel):
+    items: List[CollectionOverviewItem] = Field(default_factory=list)
+
+
+class CollectionInfo(BaseModel):
+    public_id: str
+    title: str
+    description: Optional[str] = None
+    photo_count: int = 0
+    subtree_photo_count: int = 0
+    cover_photo_id: Optional[int] = None
+
+
+class CollectionDetailResponse(BaseModel):
+    collection: CollectionInfo
+    items: List[AlbumItem] = Field(default_factory=list)
+
+
+# ── Collection actions ──────────────────────────────────────────────────────
+
+class CollectionCandidateItem(BaseModel):
+    id: int
+    public_id: str = ""
+    title: str
+    description: str = ""
+    collection_path: str = ""
+    photo_count: int = 0
+    matched_image_ids: List[int] = Field(default_factory=list)
+    selected_match_count: int = 0
+    contains_all_selected: bool = False
+
+
+class CollectionSearchRequest(BaseModel):
+    q: str = ""
+    image_ids: List[int] = Field(default_factory=list)
+    limit: int = 12
+
+
+class CollectionSearchResponse(BaseModel):
+    items: List[CollectionCandidateItem] = Field(default_factory=list)
+
+
+class CollectionApplyAction(BaseModel):
+    image_id: int
+    action: str = "add"
+
+
+class CollectionApplyRequest(BaseModel):
+    collection_id: Optional[int] = None
+    title: str = ""
+    description: str = ""
+    image_actions: List[CollectionApplyAction] = Field(default_factory=list)
+
+
+class CollectionApplyResponse(BaseModel):
+    id: int
+    public_id: str = ""
+    title: str
+    collection_path: str = ""
+    photo_count: int = 0
+    added_count: int = 0
+    removed_count: int = 0
+    kept_count: int = 0
+
+
+# ── Trash views ───────────────────────────────────────────────────────────────
+
+class TrashTargetRef(BaseModel):
+    type: str
+    image_id: Optional[int] = None
+    media_rel_path: Optional[str] = None
+    album_path: Optional[str] = None
+
+
+class TrashMoveRequest(BaseModel):
+    items: List[TrashTargetRef]
+
+
+class TrashRestoreRequest(BaseModel):
+    entry_ids: List[int]
+
+
+class TrashHardDeleteRequest(BaseModel):
+    entry_ids: List[int]
+
+
+class TrashItem(BaseModel):
+    id: int
+    entry_key: str
+    type: str
+    name: str
+    category_id: Optional[int] = None
+    thumb_url: str = ""
+    cache_thumb_url: Optional[str] = None
+    trash_media_url: Optional[str] = None
+    width: Optional[int] = None
+    height: Optional[int] = None
+    sort_ts: Optional[int] = None
+    tags: List[int] = Field(default_factory=list)
+    file_size: Optional[int] = None
+    imported_at: Optional[datetime] = None
+    file_created_at: Optional[datetime] = None
+    photo_count: Optional[int] = None
+    created_at: Optional[datetime] = None
+    original_path: Optional[str] = None
+
+
+class TrashListResponse(BaseModel):
+    items: List[TrashItem]
+
+
+class TrashActionResult(BaseModel):
+    moved: int = 0
+    restored: int = 0
+    deleted: int = 0
+    skipped: List[str] = Field(default_factory=list)
+    errors: List[str] = Field(default_factory=list)

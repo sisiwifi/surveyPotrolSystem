@@ -1,0 +1,23 @@
+media/
+backend/temp/
+backend/data/cache/
+backend/data/app.db
+backend/scripts/
+backend/tests/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*.pyc
+# 忽略常见图片格式
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.webp
+*.bmp
+*.tif
+*.tiff
+*.svg
+*.heic
+*.heif
+*.raw

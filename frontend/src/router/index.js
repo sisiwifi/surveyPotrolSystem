@@ -1,0 +1,139 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import HomePage from '../pages/HomePage.vue'
+import GalleryPage from '../pages/GalleryPage.vue'
+import CalendarOverview from '../pages/CalendarOverview.vue'
+import BrowsePage from '../pages/BrowsePage.vue'
+import CategorySettingsPage from '../pages/CategorySettingsPage.vue'
+import SettingsPage from '../pages/SettingsPage.vue'
+import SearchPage from '../pages/SearchPage.vue'
+import FavoritesPage from '../pages/FavoritesPage.vue'
+import TagOverviewPage from '../pages/TagOverviewPage.vue'
+import MapManagementPage from '../pages/MapManagementPage.vue'
+import VectorDataPage from '../pages/VectorDataPage.vue'
+
+const routes = [
+  {
+    path: '/',
+    name: 'home',
+    component: HomePage
+  },
+  {
+    path: '/search',
+    name: 'search',
+    component: SearchPage
+  },
+  {
+    path: '/search/results',
+    name: 'search-results',
+    component: BrowsePage,
+    meta: { reuseKey: 'browse', browseContract: 'search-results' }
+  },
+  {
+    path: '/tags',
+    name: 'tags',
+    component: TagOverviewPage
+  },
+  {
+    path: '/maps',
+    name: 'maps',
+    component: MapManagementPage
+  },
+  {
+    path: '/vectors',
+    name: 'vectors',
+    component: VectorDataPage
+  },
+  {
+    path: '/tags/:tagId',
+    name: 'browse-tag',
+    component: BrowsePage,
+    props: true,
+    meta: { reuseKey: 'browse', browseContract: 'tag' }
+  },
+  {
+    path: '/gallery',
+    name: 'gallery',
+    component: GalleryPage,
+    meta: { keepAlive: true }
+  },
+  {
+    path: '/gallery/recent',
+    name: 'gallery-recent',
+    component: BrowsePage,
+    meta: { reuseKey: 'browse', browseContract: 'gallery-recent' }
+  },
+  {
+    path: '/gallery/recent/:group/:albumPath+',
+    name: 'gallery-recent-album',
+    component: BrowsePage,
+    props: true,
+    meta: { reuseKey: 'browse', browseContract: 'gallery-recent' }
+  },
+  {
+    path: '/gallery/all',
+    name: 'gallery-all',
+    component: BrowsePage,
+    meta: { reuseKey: 'browse', browseContract: 'gallery-all' }
+  },
+  {
+    path: '/gallery/all/:group/:albumPath+',
+    name: 'gallery-all-album',
+    component: BrowsePage,
+    props: true,
+    meta: { reuseKey: 'browse', browseContract: 'gallery-all' }
+  },
+  {
+    path: '/calendar',
+    name: 'calendar',
+    component: CalendarOverview
+  },
+  {
+    path: '/calendar/:group',
+    name: 'browse-group',
+    component: BrowsePage,
+    props: true,
+    meta: { reuseKey: 'browse' }
+  },
+  {
+    path: '/calendar/:group/:albumPath+',
+    name: 'browse-album',
+    component: BrowsePage,
+    props: true,
+    meta: { reuseKey: 'browse' }
+  },
+  {
+    path: '/settings',
+    name: 'settings',
+    component: SettingsPage
+  },
+  {
+    path: '/favorites',
+    name: 'favorites',
+    component: FavoritesPage
+  },
+  {
+    path: '/favorites/:collectionId',
+    name: 'browse-collection',
+    component: BrowsePage,
+    props: true,
+    meta: { reuseKey: 'browse', browseContract: 'collection' }
+  },
+  {
+    path: '/settings/categories',
+    name: 'settings-categories',
+    component: CategorySettingsPage
+  },
+  {
+    path: '/trash',
+    name: 'trash',
+    component: BrowsePage,
+    meta: { reuseKey: 'browse', browseContract: 'trash' }
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes
+})
+
+export default router
