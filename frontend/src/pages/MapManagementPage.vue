@@ -5,45 +5,40 @@
       subtitle="天地图底图、照片点位与空间工作区将在这里集中承载。"
     />
 
-    <div class="placeholder-card">
-      <div class="placeholder-card__hero">
-        <span class="placeholder-card__eyebrow">Phase 1</span>
-        <h2 class="placeholder-card__title">地图工作区占位页</h2>
-        <p class="placeholder-card__desc">
-          下一步会在这里接入天地图底图、照片定位点、点位点击查看与空间筛选能力。
+    <div class="map-management-page__intro">
+      <article class="map-management-page__intro-card">
+        <span class="map-management-page__eyebrow">Phase 1</span>
+        <h2 class="map-management-page__title">天地图接入框架</h2>
+        <p class="map-management-page__desc">
+          先把底图加载、TK 配置、点位挂载和图层切换框架搭起来，后续你只需要往这里接照片、矢量资源和筛选逻辑。
         </p>
-      </div>
+      </article>
 
-      <div class="placeholder-card__grid">
-        <article class="placeholder-panel">
-          <h3 class="placeholder-panel__title">准备接入的能力</h3>
-          <ul class="placeholder-list">
-            <li>天地图底图与基础工具栏</li>
-            <li>照片 EXIF GPS 点位展示</li>
-            <li>无坐标照片的补点与纠偏</li>
-            <li>照片与矢量图层联动查看</li>
-          </ul>
-        </article>
-
-        <article class="placeholder-panel placeholder-panel--muted">
-          <h3 class="placeholder-panel__title">当前状态</h3>
-          <p class="placeholder-panel__text">
-            本页已接入一级导航与路由，后续将作为地图中心页面继续扩展。
-          </p>
-        </article>
-      </div>
+      <article class="map-management-page__intro-card map-management-page__intro-card--soft">
+        <h3 class="map-management-page__mini-title">你需要先准备</h3>
+        <ul class="map-management-page__list">
+          <li>申请天地图网页服务 TK，并配置允许访问的域名</li>
+          <li>确认底图使用场景，先保留矢量、影像、地形三种切换</li>
+          <li>统一照片点位的坐标来源，明确经纬度字段和坐标系</li>
+          <li>给后续图层准备业务 id、图层类型和显示状态字段</li>
+        </ul>
+      </article>
     </div>
+
+    <TianDiTuMapFrame />
   </section>
 </template>
 
 <script>
 import TopLevelPageHeader from './TopLevelPageHeader.vue'
+import TianDiTuMapFrame from '../components/map/TianDiTuMapFrame.vue'
 import { topLevelPageVars } from './topLevelPageConvention'
 
 export default {
   name: 'MapManagementPage',
   components: {
     TopLevelPageHeader,
+    TianDiTuMapFrame,
   },
   computed: {
     pageVars() {
@@ -58,51 +53,39 @@ export default {
   @apply space-y-6;
 }
 
-.placeholder-card {
+.map-management-page__intro {
+  @apply grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.95fr)];
+}
+
+.map-management-page__intro-card {
   @apply rounded-[28px] border border-slate-200 bg-white/90 p-6 shadow-sm shadow-slate-200/70;
 }
 
-.placeholder-card__hero {
-  @apply space-y-3;
-}
-
-.placeholder-card__eyebrow {
-  @apply inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700;
-}
-
-.placeholder-card__title {
-  @apply text-2xl font-semibold text-slate-900;
-}
-
-.placeholder-card__desc {
-  @apply max-w-3xl text-sm leading-7 text-slate-600;
-}
-
-.placeholder-card__grid {
-  @apply mt-6 grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(260px,0.8fr)];
-}
-
-.placeholder-panel {
-  @apply rounded-[24px] border border-slate-200 bg-slate-50/85 p-5;
-}
-
-.placeholder-panel--muted {
+.map-management-page__intro-card--soft {
   @apply bg-[linear-gradient(160deg,rgba(236,253,245,0.9),rgba(240,249,255,0.9))];
 }
 
-.placeholder-panel__title {
+.map-management-page__eyebrow {
+  @apply inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-700;
+}
+
+.map-management-page__title {
+  @apply mt-3 text-2xl font-semibold text-slate-900;
+}
+
+.map-management-page__desc {
+  @apply mt-3 max-w-3xl text-sm leading-7 text-slate-600;
+}
+
+.map-management-page__mini-title {
   @apply text-base font-semibold text-slate-900;
 }
 
-.placeholder-panel__text {
-  @apply mt-3 text-sm leading-7 text-slate-600;
-}
-
-.placeholder-list {
+.map-management-page__list {
   @apply mt-3 grid gap-3 text-sm text-slate-700;
 }
 
-.placeholder-list li {
+.map-management-page__list li {
   @apply rounded-2xl border border-white/90 bg-white px-4 py-3 shadow-sm shadow-slate-200/70;
 }
 </style>

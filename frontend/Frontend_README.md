@@ -258,6 +258,20 @@ const API_BASE = 'http://127.0.0.1:8000'
 
 其中 `HomePage.vue` 已改为复用 `topLevelPageConvention.js` 暴露的共享 `API_BASE`，不再单独维护一份常量。
 
+## 8. 地图页接入天地图的准备
+
+地图页当前的入口已经预留在 `/maps`，对应的框架文件是 `src/pages/MapManagementPage.vue` 和 `src/components/map/TianDiTuMapFrame.vue`。
+
+如果你准备接入天地图，前端侧至少先准备这些信息：
+
+- 天地图网页服务 TK，前端会通过 `VUE_APP_TIANDITU_TK` 读取
+- 允许访问的域名白名单，开发时可以先放本地开发域名，生产环境再换成正式站点
+- 默认地图中心点和缩放级别，当前框架提供了 `VUE_APP_TIANDITU_CENTER_LAT`、`VUE_APP_TIANDITU_CENTER_LNG` 和 `VUE_APP_TIANDITU_ZOOM`
+- 点位数据结构，至少要保留经纬度、业务 id、图层类型和可见状态
+- 坐标系策略，尤其是照片 EXIF 坐标、业务点位坐标和后端持久化坐标要统一
+
+当前框架已经预留了三种底图切换：矢量、影像、地形。你后续可以直接在地图页里继续接照片点位、矢量图层、框选和筛选逻辑，不需要重新搭底图容器。
+
 ### 7.2 页面配置
 
 `src/utils/pageConfig.js` 当前与后端约定：
