@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar" :class="isSidebarCollapsed ? 'sidebar--collapsed' : 'sidebar--expanded'">
     <div class="sidebar__header">
-      <img alt="Vue 标志" src="../assets/logo.png" class="sidebar__logo">
+      <div class="sidebar__logo" aria-hidden="true">P</div>
       <div
         class="sidebar__title"
         :class="isTextVisible ? 'sidebar__title--visible' : 'sidebar__title--hidden'"
@@ -90,7 +90,7 @@ export default {
 }
 
 .sidebar__logo {
-  @apply h-7 w-7;
+  @apply flex h-7 w-7 items-center justify-center rounded-lg bg-slate-900 text-xs font-semibold text-white;
 }
 
 .sidebar__title {

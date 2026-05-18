@@ -4,7 +4,8 @@
 
 ## 1. 项目位置
 
-- 后端目录：`D:\Python_projects\picTagView_main\backend`
+- 当前仓库根目录：`D:\Python_projects\surveyPotrolSystem_main`
+- 后端目录：`D:\Python_projects\surveyPotrolSystem_main\backend`
 - 应用入口：`backend/app/main.py`
 
 ## 2. 技术栈与运行时目录

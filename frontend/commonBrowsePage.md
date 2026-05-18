@@ -1,6 +1,6 @@
 # Common Browse Page 契约说明
 
-本文档对应 `frontend/src/utils/commonBrowsePage.js` 的当前实现，描述 `BrowsePage.vue` 如何通过页面契约切换 `calendar`、`search-results`、`gallery-recent`、`gallery-all`、`collection`、`tag`、`trash` 七种浏览模式。
+本文档对应 `frontend/src/utils/commonBrowsePage.js` 的当前实现，描述 `BrowsePage.vue` 如何通过页面契约切换 `calendar`、`search-results`、`gallery-recent`、`gallery-all`、`collection`、`tag`、`trash` 七种浏览模式。当前内容以仓库 `D:\Python_projects\surveyPotrolSystem_main` 下的实现为准。
 
 ## 1. 目标
 

@@ -1,6 +1,6 @@
 # picTagView Backend API 与服务说明
 
-本文档按“路由层 -> 服务层 -> 当前协议细节”说明后端实现，内容以 `backend/app/api/routers/*.py` 与 `backend/app/services/*.py` 的当前代码为准。
+本文档按“路由层 -> 服务层 -> 当前协议细节”说明后端实现，内容以 `backend/app/api/routers/*.py` 与 `backend/app/services/*.py` 的当前代码为准，适用于当前仓库 `D:\Python_projects\surveyPotrolSystem_main`。
 
 ## 1. 分层概览
 

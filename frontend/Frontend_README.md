@@ -4,7 +4,8 @@
 
 ## 1. 项目位置与技术栈
 
-- 项目目录：`D:\Python_projects\picTagView_main\frontend`
+- 当前仓库根目录：`D:\Python_projects\surveyPotrolSystem_main`
+- 项目目录：`D:\Python_projects\surveyPotrolSystem_main\frontend`
 - 框架：Vue 3
 - 路由：Vue Router 4
 - 样式：Tailwind CSS
