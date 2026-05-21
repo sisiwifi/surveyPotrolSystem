@@ -4,6 +4,7 @@ import GalleryPage from '../pages/GalleryPage.vue'
 import CalendarOverview from '../pages/CalendarOverview.vue'
 import BrowsePage from '../pages/BrowsePage.vue'
 import CategorySettingsPage from '../pages/CategorySettingsPage.vue'
+import MapConfigPage from '../pages/MapConfigPage.vue'
 import SettingsPage from '../pages/SettingsPage.vue'
 import SearchPage from '../pages/SearchPage.vue'
 import FavoritesPage from '../pages/FavoritesPage.vue'
@@ -36,7 +37,8 @@ const routes = [
   {
     path: '/maps',
     name: 'maps',
-    component: MapManagementPage
+    component: MapManagementPage,
+    meta: { fullBleed: true }
   },
   {
     path: '/vectors',
@@ -122,6 +124,11 @@ const routes = [
     path: '/settings/categories',
     name: 'settings-categories',
     component: CategorySettingsPage
+  },
+  {
+    path: '/settings/map-config',
+    name: 'settings-map-config',
+    component: MapConfigPage
   },
   {
     path: '/trash',

@@ -3,18 +3,20 @@
     <div class="flex h-screen">
       <AppSidebar />
       <main class="flex-1 min-w-0 overflow-y-auto">
-        <div class="min-h-full p-10">
+        <div class="h-full min-h-full">
           <router-view v-slot="{ Component, route }">
-            <KeepAlive>
-              <component
-                v-if="route.meta?.keepAlive"
-                :is="Component"
-                :key="route.meta?.reuseKey || route.name"
-              />
-            </KeepAlive>
-            <Transition name="page" mode="out-in">
-              <component v-if="!route.meta?.keepAlive" :is="Component" :key="route.meta?.reuseKey || route.name" />
-            </Transition>
+            <div :class="route.meta?.fullBleed ? 'h-full' : 'min-h-full p-10'">
+              <KeepAlive>
+                <component
+                  v-if="route.meta?.keepAlive"
+                  :is="Component"
+                  :key="route.meta?.reuseKey || route.name"
+                />
+              </KeepAlive>
+              <Transition name="page" mode="out-in">
+                <component v-if="!route.meta?.keepAlive" :is="Component" :key="route.meta?.reuseKey || route.name" />
+              </Transition>
+            </div>
           </router-view>
         </div>
       </main>

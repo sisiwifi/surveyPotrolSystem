@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException
 from app.api.schemas import (
     CacheThumbSettingRequest,
     CacheThumbSettingResponse,
+    MapConfigRequest,
+    MapConfigResponse,
     MonthCoverSettingRequest,
     MonthCoverSettingResponse,
     PageConfigRequest,
@@ -13,18 +15,24 @@ from app.api.schemas import (
 )
 from app.services.app_settings_service import (
     DEFAULT_CACHE_SHORT_SIDE_PX,
+    DEFAULT_MAP_CENTER,
+    DEFAULT_MAP_ZOOM,
     DEFAULT_MONTH_COVER_SIZE_PX,
     DEFAULT_PAGE_BROWSE_MODE,
     DEFAULT_PAGE_SCROLL_WINDOW_SIZE,
     MAX_CACHE_SHORT_SIDE_PX,
+    MAX_MAP_ZOOM,
     MAX_MONTH_COVER_SIZE_PX,
     MIN_CACHE_SHORT_SIDE_PX,
+    MIN_MAP_ZOOM,
     MIN_MONTH_COVER_SIZE_PX,
     get_cache_thumb_short_side_px,
+    get_map_config,
     get_month_cover_size_px,
     get_page_config,
     get_tag_match_setting,
     set_cache_thumb_short_side_px,
+    set_map_config,
     set_month_cover_size_px,
     set_page_config,
     set_tag_match_setting,
@@ -126,6 +134,46 @@ def set_page_config_api(body: PageConfigRequest) -> PageConfigResponse:
         scroll_window_size=next_setting.get("scroll_window_size", DEFAULT_PAGE_SCROLL_WINDOW_SIZE),
         default_browse_mode=DEFAULT_PAGE_BROWSE_MODE,
         default_scroll_window_size=DEFAULT_PAGE_SCROLL_WINDOW_SIZE,
+    )
+
+
+@router.get("/api/system/map-config", response_model=MapConfigResponse)
+def get_map_config_api() -> MapConfigResponse:
+    data = get_map_config()
+    return MapConfigResponse(
+        tk=data.get("tk", ""),
+        default_center=data.get("default_center", DEFAULT_MAP_CENTER),
+        default_zoom=data.get("default_zoom", DEFAULT_MAP_ZOOM),
+    )
+
+
+@router.post("/api/system/map-config", response_model=MapConfigResponse)
+def set_map_config_api(body: MapConfigRequest) -> MapConfigResponse:
+    center = list(body.default_center or [])
+    if len(center) != 2:
+        raise HTTPException(status_code=400, detail="default_center must contain latitude and longitude")
+
+    latitude = center[0]
+    longitude = center[1]
+    if latitude < -90 or latitude > 90:
+        raise HTTPException(status_code=400, detail="latitude must be between -90 and 90")
+    if longitude < -180 or longitude > 180:
+        raise HTTPException(status_code=400, detail="longitude must be between -180 and 180")
+    if body.default_zoom < MIN_MAP_ZOOM or body.default_zoom > MAX_MAP_ZOOM:
+        raise HTTPException(
+            status_code=400,
+            detail=f"default_zoom must be between {MIN_MAP_ZOOM} and {MAX_MAP_ZOOM}",
+        )
+
+    next_setting = set_map_config({
+        "tk": body.tk,
+        "default_center": [latitude, longitude],
+        "default_zoom": body.default_zoom,
+    })
+    return MapConfigResponse(
+        tk=next_setting.get("tk", ""),
+        default_center=next_setting.get("default_center", DEFAULT_MAP_CENTER),
+        default_zoom=next_setting.get("default_zoom", DEFAULT_MAP_ZOOM),
     )
 
 

@@ -24,6 +24,12 @@ PAGE_BROWSE_MODE_OPTIONS = {"scroll", "paged"}
 DEFAULT_PAGE_SCROLL_WINDOW_SIZE = 100
 PAGE_SCROLL_WINDOW_OPTIONS = tuple(range(40, 201, 20))
 
+DEFAULT_MAP_TIANDITU_TK = ""
+DEFAULT_MAP_CENTER = [35.8617, 104.1954]
+DEFAULT_MAP_ZOOM = 5
+MIN_MAP_ZOOM = 3
+MAX_MAP_ZOOM = 18
+
 
 def _normalize_page_scroll_window_size(value: object) -> int:
     try:
@@ -33,6 +39,29 @@ def _normalize_page_scroll_window_size(value: object) -> int:
     if normalized in PAGE_SCROLL_WINDOW_OPTIONS:
         return normalized
     return DEFAULT_PAGE_SCROLL_WINDOW_SIZE
+
+
+def _normalize_map_center(value: object) -> list[float]:
+    if not isinstance(value, (list, tuple)) or len(value) != 2:
+        return list(DEFAULT_MAP_CENTER)
+
+    try:
+        latitude = float(value[0])
+        longitude = float(value[1])
+    except Exception:
+        return list(DEFAULT_MAP_CENTER)
+
+    latitude = max(-90.0, min(90.0, latitude))
+    longitude = max(-180.0, min(180.0, longitude))
+    return [latitude, longitude]
+
+
+def _normalize_map_zoom(value: object) -> int:
+    try:
+        normalized = int(value)
+    except Exception:
+        return DEFAULT_MAP_ZOOM
+    return max(MIN_MAP_ZOOM, min(MAX_MAP_ZOOM, normalized))
 
 
 def load_app_settings() -> dict:
@@ -212,6 +241,49 @@ def set_page_config(setting: dict) -> dict:
     data["page_config"] = {
         "browse_mode": current["browse_mode"],
         "scroll_window_size": current["scroll_window_size"],
+    }
+    save_app_settings(data)
+    return current
+
+
+def get_map_config() -> dict:
+    data = load_app_settings()
+    raw = data.get("map_config")
+    if not isinstance(raw, dict):
+        raw = {}
+
+    tk = raw.get("tk", DEFAULT_MAP_TIANDITU_TK)
+    if not isinstance(tk, str):
+        tk = DEFAULT_MAP_TIANDITU_TK
+
+    return {
+        "tk": tk.strip(),
+        "default_center": _normalize_map_center(raw.get("default_center", DEFAULT_MAP_CENTER)),
+        "default_zoom": _normalize_map_zoom(raw.get("default_zoom", DEFAULT_MAP_ZOOM)),
+    }
+
+
+def set_map_config(setting: dict) -> dict:
+    if not isinstance(setting, dict):
+        setting = {}
+
+    current = get_map_config()
+
+    if "tk" in setting:
+        tk = setting.get("tk", DEFAULT_MAP_TIANDITU_TK)
+        current["tk"] = tk.strip() if isinstance(tk, str) else DEFAULT_MAP_TIANDITU_TK
+
+    if "default_center" in setting:
+        current["default_center"] = _normalize_map_center(setting.get("default_center"))
+
+    if "default_zoom" in setting:
+        current["default_zoom"] = _normalize_map_zoom(setting.get("default_zoom"))
+
+    data = load_app_settings()
+    data["map_config"] = {
+        "tk": current["tk"],
+        "default_center": current["default_center"],
+        "default_zoom": current["default_zoom"],
     }
     save_app_settings(data)
     return current

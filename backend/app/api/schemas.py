@@ -198,6 +198,18 @@ class PageConfigResponse(BaseModel):
     default_scroll_window_size: int = 100
 
 
+class MapConfigRequest(BaseModel):
+    tk: str = ""
+    default_center: List[float] = Field(default_factory=lambda: [35.8617, 104.1954])
+    default_zoom: int = 5
+
+
+class MapConfigResponse(BaseModel):
+    tk: str = ""
+    default_center: List[float] = Field(default_factory=lambda: [35.8617, 104.1954])
+    default_zoom: int = 5
+
+
 class AdminRefreshRequest(BaseModel):
     image_ids: List[int] = Field(default_factory=list)
     trash_entry_ids: List[int] = Field(default_factory=list)

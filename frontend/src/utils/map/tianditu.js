@@ -5,21 +5,21 @@ const DEFAULT_ZOOM = 5
 const TIANDITU_LAYER_MODES = Object.freeze([
   {
     key: 'vector',
-    label: '矢量底图',
+    label: '天地图',
     description: '适合照片点位、道路轮廓和行政边界的日常编辑。',
     baseLayerCode: 'vec_w',
     annotationLayerCode: 'cva_w',
   },
   {
     key: 'imagery',
-    label: '影像底图',
+    label: '天地图影像',
     description: '适合定位校对、场景比对和实地影像查看。',
     baseLayerCode: 'img_w',
     annotationLayerCode: 'cia_w',
   },
   {
     key: 'terrain',
-    label: '地形底图',
+    label: '天地图地形',
     description: '适合山地、道路高程和空间环境判断。',
     baseLayerCode: 'ter_w',
     annotationLayerCode: 'cta_w',
@@ -35,23 +35,55 @@ function readEnvNumber(envKey, fallbackValue) {
   return Number.isFinite(parsedValue) ? parsedValue : fallbackValue
 }
 
-export function readTiandituRuntime() {
-  const tk = readEnvText('VUE_APP_TIANDITU_TK')
+function readConfigCenter(rawConfig) {
+  const candidate = rawConfig?.default_center || rawConfig?.defaultCenter
+  if (!Array.isArray(candidate) || candidate.length !== 2) {
+    return null
+  }
+
+  const latitude = Number(candidate[0])
+  const longitude = Number(candidate[1])
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null
+  }
+
+  return [
+    Math.min(90, Math.max(-90, latitude)),
+    Math.min(180, Math.max(-180, longitude)),
+  ]
+}
+
+function readConfigZoom(rawConfig) {
+  const parsedValue = Number(rawConfig?.default_zoom ?? rawConfig?.defaultZoom)
+  if (!Number.isFinite(parsedValue)) {
+    return null
+  }
+  return Math.min(18, Math.max(3, parsedValue))
+}
+
+export function readTiandituRuntime(rawConfig = null) {
+  const envTk = readEnvText('VUE_APP_TIANDITU_TK')
+  const configTk = typeof rawConfig?.tk === 'string' ? rawConfig.tk.trim() : ''
+  const tk = configTk || envTk
   const domainHint = readEnvText(
     'VUE_APP_TIANDITU_DOMAIN',
     typeof window !== 'undefined' ? window.location.host : '',
   )
+  const envCenter = [
+    readEnvNumber('VUE_APP_TIANDITU_CENTER_LAT', DEFAULT_CENTER_LAT),
+    readEnvNumber('VUE_APP_TIANDITU_CENTER_LNG', DEFAULT_CENTER_LNG),
+  ]
+  const envZoom = readEnvNumber('VUE_APP_TIANDITU_ZOOM', DEFAULT_ZOOM)
+  const configCenter = readConfigCenter(rawConfig)
+  const configZoom = readConfigZoom(rawConfig)
 
   return {
     appName: readEnvText('VUE_APP_TIANDITU_APP_NAME', 'surveyPotrolSystem'),
     domainHint,
     tk,
     ready: Boolean(tk),
-    defaultCenter: [
-      readEnvNumber('VUE_APP_TIANDITU_CENTER_LAT', DEFAULT_CENTER_LAT),
-      readEnvNumber('VUE_APP_TIANDITU_CENTER_LNG', DEFAULT_CENTER_LNG),
-    ],
-    defaultZoom: readEnvNumber('VUE_APP_TIANDITU_ZOOM', DEFAULT_ZOOM),
+    defaultCenter: configCenter || envCenter,
+    defaultZoom: configZoom ?? envZoom,
     tileSubdomains: '01234567',
   }
 }

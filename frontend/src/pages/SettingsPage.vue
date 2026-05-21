@@ -55,29 +55,28 @@
         title="设置"
         subtitle="系统管理与常用配置入口"
       >
-        <button class="page-header__action trash-launch" type="button" @click="$router.push('/trash')">
-          <span class="trash-launch__icon" aria-hidden="true">
+        <button class="page-header__action map-launch" type="button" @click="$router.push('/settings/map-config')">
+          <span class="map-launch__icon" aria-hidden="true">
             <svg viewBox="0 0 48 48" fill="none">
-              <rect x="6" y="8" width="36" height="32" rx="12" fill="url(#trash-launch-bg)" />
-              <path d="M17 20H31" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-              <path d="M19 16.5H29" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-              <path d="M20.5 22.5V31.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-              <path d="M27.5 22.5V31.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" />
-              <path d="M15.5 18.5L17.8 14.5L22 16.7" stroke="#047857" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-              <path d="M32.5 29.5L30.2 33.5L26 31.3" stroke="#0f766e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              <rect x="6" y="8" width="36" height="32" rx="12" fill="url(#map-launch-bg)" />
+              <path d="M16.5 19.5L24 16L31.5 19.5V30.5L24 34L16.5 30.5V19.5Z" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" />
+              <path d="M24 16V34" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+              <path d="M16.5 19.5L24 23L31.5 19.5" stroke="currentColor" stroke-width="2" stroke-linejoin="round" />
+              <path d="M34 14.5C34 18.09 31.09 21 27.5 21C23.91 21 21 18.09 21 14.5C21 10.91 23.91 8 27.5 8C31.09 8 34 10.91 34 14.5Z" fill="#dcfce7" />
+              <path d="M27.5 18C25.57 18 24 16.43 24 14.5C24 12.57 25.57 11 27.5 11C29.43 11 31 12.57 31 14.5C31 16.43 29.43 18 27.5 18Z" stroke="#0f766e" stroke-width="1.8" />
               <defs>
-                <linearGradient id="trash-launch-bg" x1="10" y1="10" x2="38" y2="38" gradientUnits="userSpaceOnUse">
-                  <stop stop-color="#ecfccb" />
-                  <stop offset="1" stop-color="#fef3c7" />
+                <linearGradient id="map-launch-bg" x1="10" y1="10" x2="38" y2="38" gradientUnits="userSpaceOnUse">
+                  <stop stop-color="#ecfeff" />
+                  <stop offset="1" stop-color="#dcfce7" />
                 </linearGradient>
               </defs>
             </svg>
           </span>
-          <span class="trash-launch__copy">
-            <span class="trash-launch__title">回收站</span>
-            <span class="trash-launch__subtitle">查看已删除项目</span>
+          <span class="map-launch__copy">
+            <span class="map-launch__title">配置天地图 API</span>
+            <span class="map-launch__subtitle">设置 Key 与默认视角</span>
           </span>
-          <span class="trash-launch__arrow" aria-hidden="true">→</span>
+          <span class="map-launch__arrow" aria-hidden="true">→</span>
         </button>
       </TopLevelPageHeader>
 
@@ -162,6 +161,16 @@
             @click="clearCache"
           >
             {{ clearingCache ? '清除中…' : '清除缓存' }}
+          </button>
+        </div>
+
+        <div class="setting-row setting-row--compact">
+          <div class="setting-info">
+            <span class="setting-label">回收站</span>
+            <span class="setting-desc">不再作为右上角主入口，按需从这里进入查看已删除项目。</span>
+          </div>
+          <button class="btn btn--secondary" type="button" @click="$router.push('/trash')">
+            打开回收站
           </button>
         </div>
 
@@ -957,7 +966,7 @@ export default {
   padding: 0;
 }
 
-.trash-launch {
+.map-launch {
   display: inline-flex;
   align-items: center;
   gap: 0.9rem;
@@ -976,13 +985,20 @@ export default {
   transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
-.trash-launch:hover {
+.map-launch {
+  border-color: rgba(13, 148, 136, 0.18);
+  background:
+    radial-gradient(circle at top left, rgba(207, 250, 254, 0.95), transparent 55%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(236, 253, 245, 0.98));
+}
+
+.map-launch:hover {
   transform: translateY(-2px);
   border-color: rgba(13, 148, 136, 0.24);
   box-shadow: 0 18px 34px rgba(15, 23, 42, 0.12);
 }
 
-.trash-launch__icon {
+.map-launch__icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -995,12 +1011,12 @@ export default {
   flex-shrink: 0;
 }
 
-.trash-launch__icon svg {
+.map-launch__icon svg {
   width: 36px;
   height: 36px;
 }
 
-.trash-launch__copy {
+.map-launch__copy {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
@@ -1008,20 +1024,20 @@ export default {
   flex: 1 1 auto;
 }
 
-.trash-launch__title {
+.map-launch__title {
   color: #0f172a;
   font-size: 1rem;
   font-weight: 800;
   letter-spacing: 0.01em;
 }
 
-.trash-launch__subtitle {
+.map-launch__subtitle {
   color: #64748b;
   font-size: 0.78rem;
   font-weight: 600;
 }
 
-.trash-launch__arrow {
+.map-launch__arrow {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1100,7 +1116,7 @@ export default {
     @apply flex-col items-stretch;
   }
 
-  .trash-launch {
+  .map-launch {
     width: 100%;
     min-width: 0;
   }

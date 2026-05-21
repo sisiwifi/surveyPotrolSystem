@@ -5,5 +5,13 @@
   "page_config": {
     "browse_mode": "scroll",
     "scroll_window_size": 100
+  },
+  "map_config": {
+    "tk": "d883abbea76ac52b242bbe510cd0b315",
+    "default_center": [
+      35.8617,
+      104.1954
+    ],
+    "default_zoom": 5
   }
 }
