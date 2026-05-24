@@ -720,6 +720,12 @@ export default {
   },
 }
 </script>
+/**
+ * 首页仪表板，负责展示可见图片统计、全局标签统计和连续加载的标签墙。
+ * 用户默认从 / 进入；首页卡片会把流量继续导向图库总览、标签总览等核心页面。
+ * 维护重点是 /api/home/overview 的展示节奏、本地 exclude_image_ids 轮换策略，以及标签墙的延迟加载与预览修复。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .top-level-page {

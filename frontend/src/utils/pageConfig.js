@@ -2,18 +2,15 @@ const API_BASE = 'http://127.0.0.1:8000'
 const STORAGE_KEY = 'ptv.pageConfig'
 
 export const PAGE_CONFIG_UPDATED_EVENT = 'ptv:page-config-updated'
-export const PAGE_BROWSE_MODE_SCROLL = 'scroll'
 export const PAGE_BROWSE_MODE_PAGED = 'paged'
 export const PAGE_SCROLL_WINDOW_OPTIONS = Object.freeze([40, 60, 80, 100, 120, 140, 160, 180, 200])
+export const PAGE_SIZE_OPTIONS = Object.freeze([20, 40, 60, 100, 200])
 
 export const DEFAULT_PAGE_CONFIG = Object.freeze({
-  browseMode: PAGE_BROWSE_MODE_SCROLL,
+  browseMode: PAGE_BROWSE_MODE_PAGED,
   scrollWindowSize: 100,
+  pageSize: 20,
 })
-
-function normalizeBrowseMode(value) {
-  return value === PAGE_BROWSE_MODE_PAGED ? PAGE_BROWSE_MODE_PAGED : PAGE_BROWSE_MODE_SCROLL
-}
 
 function normalizeScrollWindowSize(value) {
   const numericValue = Number.parseInt(String(value ?? ''), 10)
@@ -23,17 +20,26 @@ function normalizeScrollWindowSize(value) {
   return DEFAULT_PAGE_CONFIG.scrollWindowSize
 }
 
+function normalizePageSize(value) {
+  const numericValue = Number.parseInt(String(value ?? ''), 10)
+  if (PAGE_SIZE_OPTIONS.includes(numericValue)) {
+    return numericValue
+  }
+  return DEFAULT_PAGE_CONFIG.pageSize
+}
+
 export function normalizePageConfig(rawConfig) {
-  const browseMode = normalizeBrowseMode(
-    rawConfig?.browse_mode || rawConfig?.browseMode || DEFAULT_PAGE_CONFIG.browseMode,
-  )
   const scrollWindowSize = normalizeScrollWindowSize(
     rawConfig?.scroll_window_size || rawConfig?.scrollWindowSize || DEFAULT_PAGE_CONFIG.scrollWindowSize,
   )
+  const pageSize = normalizePageSize(
+    rawConfig?.page_size || rawConfig?.pageSize || DEFAULT_PAGE_CONFIG.pageSize,
+  )
 
   return {
-    browseMode,
+    browseMode: PAGE_BROWSE_MODE_PAGED,
     scrollWindowSize,
+    pageSize,
   }
 }
 
@@ -77,13 +83,17 @@ export async function fetchPageConfig() {
 }
 
 export async function savePageConfig(nextConfig) {
-  const normalized = normalizePageConfig(nextConfig)
+  const normalized = normalizePageConfig({
+    ...getCachedPageConfig(),
+    ...nextConfig,
+  })
   const res = await fetch(`${API_BASE}/api/system/page-config`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       browse_mode: normalized.browseMode,
       scroll_window_size: normalized.scrollWindowSize,
+      page_size: normalized.pageSize,
     }),
   })
 

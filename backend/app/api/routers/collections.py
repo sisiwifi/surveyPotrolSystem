@@ -1,3 +1,12 @@
+"""收藏夹总览、详情与批量应用接口。
+
+主要职责：
+- 提供收藏夹列表、详情、搜索候选、批量应用和封面设置。
+- 主要服务 FavoritesPage、BrowsePage(collection) 和收藏菜单弹窗。
+
+public_id、cover 和 apply 协议见 backend/api_services.md。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

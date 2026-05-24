@@ -1,3 +1,12 @@
+"""API router 导出表。
+
+主要职责：
+- 统一重导出各业务 router，供 app.api.routes 聚合注册。
+- 新增接口模块时，先在这里暴露符号，再决定是否挂到总路由。
+
+端点语义与模块分工见 backend/api_services.md。
+"""
+
 from app.api.routers.albums import router as albums_router
 from app.api.routers.basic import router as basic_router
 from app.api.routers.cache import router as cache_router

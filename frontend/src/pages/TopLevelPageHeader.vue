@@ -12,6 +12,12 @@
 </template>
 
 <script>
+/**
+ * 顶层页共用页头组件，不是独立业务页面。
+ * 用法是为 Home、Search、Gallery、Favorites、TagOverview 等一级页统一提供标题、副标题和右侧插槽区域。
+ * 如果需要调整一级页页头视觉或间距，优先修改这里，并同步核对 src/pages/topLevelPageConvention.js 的整体约定。
+ * 相关文档：frontend/Frontend_README.md。
+ */
 export default {
   name: 'TopLevelPageHeader',
   props: {

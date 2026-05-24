@@ -1,3 +1,12 @@
+"""统一搜索接口。
+
+主要职责：
+- 支持文本、tag、path、quick hash、导入时间和创建时间等多模式搜索。
+- 同时服务 SearchPage 一级预览和 BrowsePage(search-results) 完整结果页。
+
+模式解析、查询参数和返回字段见 backend/api_services.md。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -1,3 +1,12 @@
+"""回收站接口。
+
+主要职责：
+- 列出、对账、移入、还原、彻底删除和清空回收站条目。
+- 主要服务 BrowsePage(trash) 契约和设置页中的回收站入口。
+
+entry_key 与恢复语义见 backend/api_services.md。
+"""
+
 from fastapi import APIRouter
 
 from app.api.schemas import (

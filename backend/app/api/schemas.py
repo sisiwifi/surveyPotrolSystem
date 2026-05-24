@@ -1,3 +1,12 @@
+"""API 请求体与响应体模型定义。
+
+主要职责：
+- 为路由层提供统一的 Pydantic 数据契约。
+- 作为前后端字段对齐的单一来源，覆盖浏览、搜索、设置、缓存队列等核心场景。
+
+修改字段前请同步 backend/api_services.md，并核对对应前端页面的头部说明。
+"""
+
 from datetime import datetime
 from typing import List, Optional
 
@@ -187,15 +196,18 @@ class MonthCoverSettingResponse(BaseModel):
 
 
 class PageConfigRequest(BaseModel):
-    browse_mode: str = "scroll"
+    browse_mode: str = "paged"
     scroll_window_size: int = 100
+    page_size: int = 20
 
 
 class PageConfigResponse(BaseModel):
     browse_mode: str
     scroll_window_size: int = 100
-    default_browse_mode: str = "scroll"
+    page_size: int = 20
+    default_browse_mode: str = "paged"
     default_scroll_window_size: int = 100
+    default_page_size: int = 20
 
 
 class MapConfigRequest(BaseModel):

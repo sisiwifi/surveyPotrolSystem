@@ -1,3 +1,12 @@
+"""API 层通用工具与预览解析器。
+
+主要职责：
+- 把数据库里的资源路径、缩略图和缓存路径转换成前端可直接消费的 URL。
+- 在单次请求内缓存 temp/cache 可用性判断，减少重复文件系统访问。
+
+保持这里的轻工具属性，复杂业务请下沉到 services；字段约定详见 backend/api_services.md。
+"""
+
 import os
 from dataclasses import dataclass
 from pathlib import Path

@@ -1,3 +1,8 @@
+/**
+ * 前端路由总表。
+ * 这里负责把一级页、BrowsePage 的复用契约路由，以及地图 fullBleed 等展示约定串起来。
+ * 新增页面时先在这里确认路径、name 和 meta，再同步更新 frontend/Frontend_README.md 中的路由速查说明。
+ */
 import { createRouter, createWebHistory } from 'vue-router'
 import HomePage from '../pages/HomePage.vue'
 import GalleryPage from '../pages/GalleryPage.vue'

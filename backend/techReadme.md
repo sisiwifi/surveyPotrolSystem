@@ -2,6 +2,18 @@
 
 本文档描述当前后端结构、运行时目录、核心模块和开发约定，内容以 `backend/app` 下的现行代码为准。
 
+## 读码速查
+
+后端排查建议先按层找入口，而不是直接全局搜索：
+
+| 想解决的问题 | 先看文件 | 再看哪里 |
+| --- | --- | --- |
+| 接口由谁提供、挂载顺序怎样 | `app/api/routes.py` | `backend/api_services.md` |
+| 某个端点的入参/出参长什么样 | `app/api/schemas.py` | 对应 `app/api/routers/*.py` |
+| 浏览、搜索、设置类请求的协议细节 | 对应 `app/api/routers/*.py` 文件头说明 | `backend/api_services.md` |
+| 导入、回收站、Tag 匹配等业务为什么这么做 | `app/services/*.py` | 本文档 5.* 小节 |
+| 路径、数据库、缓存目录在哪里 | `app/core/config.py` | 本文档 2.* 小节 |
+
 ## 1. 项目位置
 
 - 当前仓库根目录：`D:\Python_projects\surveyPotrolSystem_main`
@@ -189,7 +201,7 @@
 - `app_settings_service.py` 当前持久化到 `backend/data/app_settings.json` 的设置包括：
   - 浏览缓存缩略图短边尺寸
   - 月份封面尺寸
-  - 页面浏览模式与滚动窗口范围（`40-200`，步长 `20`）
+  - 固定分页配置：默认每页 `20`，可选 `20/40/60/100/200`；同时保留缓存窗口兼容参数供预取逻辑使用
   - 文件名自动打标设置（`enabled`、`noise_tokens`、`min_token_length`、`drop_numeric_only`，返回体额外带固定 `sort_mode = name_asc`）
 
 ## 6. 数据模型摘要

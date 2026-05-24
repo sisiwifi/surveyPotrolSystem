@@ -1,4 +1,11 @@
-"""Tag CRUD, batch-query, import and export endpoints."""
+"""标签接口与批量标签维护入口。
+
+主要职责：
+- 提供 Tag 查询、草稿、新建、编辑、删除、导入导出和 Tag 二级浏览。
+- 同时服务 TagOverviewPage、SettingsPage 标签管理面板和图片自动打标流程。
+
+草稿、批量新增和批量删除协议见 backend/api_services.md。
+"""
 from __future__ import annotations
 
 import re

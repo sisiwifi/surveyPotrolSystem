@@ -19,10 +19,12 @@ MIN_TAG_MATCH_MIN_TOKEN_LENGTH = 1
 MAX_TAG_MATCH_MIN_TOKEN_LENGTH = 32
 DEFAULT_TAG_MATCH_DROP_NUMERIC_ONLY = True
 
-DEFAULT_PAGE_BROWSE_MODE = "scroll"
+DEFAULT_PAGE_BROWSE_MODE = "paged"
 PAGE_BROWSE_MODE_OPTIONS = {"scroll", "paged"}
 DEFAULT_PAGE_SCROLL_WINDOW_SIZE = 100
 PAGE_SCROLL_WINDOW_OPTIONS = tuple(range(40, 201, 20))
+DEFAULT_PAGE_SIZE = 20
+PAGE_SIZE_OPTIONS = (20, 40, 60, 100, 200)
 
 DEFAULT_MAP_TIANDITU_TK = ""
 DEFAULT_MAP_CENTER = [35.8617, 104.1954]
@@ -39,6 +41,16 @@ def _normalize_page_scroll_window_size(value: object) -> int:
     if normalized in PAGE_SCROLL_WINDOW_OPTIONS:
         return normalized
     return DEFAULT_PAGE_SCROLL_WINDOW_SIZE
+
+
+def _normalize_page_size(value: object) -> int:
+    try:
+        normalized = int(value)
+    except Exception:
+        return DEFAULT_PAGE_SIZE
+    if normalized in PAGE_SIZE_OPTIONS:
+        return normalized
+    return DEFAULT_PAGE_SIZE
 
 
 def _normalize_map_center(value: object) -> list[float]:
@@ -207,16 +219,18 @@ def get_page_config() -> dict:
     if not isinstance(raw, dict):
         raw = {}
 
-    browse_mode = str(raw.get("browse_mode", DEFAULT_PAGE_BROWSE_MODE) or DEFAULT_PAGE_BROWSE_MODE).strip()
-    if browse_mode not in PAGE_BROWSE_MODE_OPTIONS:
-        browse_mode = DEFAULT_PAGE_BROWSE_MODE
+    browse_mode = DEFAULT_PAGE_BROWSE_MODE
     scroll_window_size = _normalize_page_scroll_window_size(
         raw.get("scroll_window_size", DEFAULT_PAGE_SCROLL_WINDOW_SIZE),
+    )
+    page_size = _normalize_page_size(
+        raw.get("page_size", DEFAULT_PAGE_SIZE),
     )
 
     return {
         "browse_mode": browse_mode,
         "scroll_window_size": scroll_window_size,
+        "page_size": page_size,
     }
 
 
@@ -227,20 +241,23 @@ def set_page_config(setting: dict) -> dict:
     current = get_page_config()
 
     if "browse_mode" in setting:
-        browse_mode = str(setting.get("browse_mode") or DEFAULT_PAGE_BROWSE_MODE).strip()
-        if browse_mode not in PAGE_BROWSE_MODE_OPTIONS:
-            browse_mode = DEFAULT_PAGE_BROWSE_MODE
-        current["browse_mode"] = browse_mode
+        current["browse_mode"] = DEFAULT_PAGE_BROWSE_MODE
 
     if "scroll_window_size" in setting:
         current["scroll_window_size"] = _normalize_page_scroll_window_size(
             setting.get("scroll_window_size"),
         )
 
+    if "page_size" in setting:
+        current["page_size"] = _normalize_page_size(
+            setting.get("page_size"),
+        )
+
     data = load_app_settings()
     data["page_config"] = {
         "browse_mode": current["browse_mode"],
         "scroll_window_size": current["scroll_window_size"],
+        "page_size": current["page_size"],
     }
     save_app_settings(data)
     return current

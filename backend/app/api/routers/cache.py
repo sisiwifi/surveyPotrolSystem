@@ -1,3 +1,12 @@
+"""缓存缩略图队列接口。
+
+主要职责：
+- 启动共享缓存任务、轮询任务进度，并负责清空 temp/cache 目录。
+- 被 BrowsePage、SearchPage、FavoritesPage 等页面按需调用，用于补齐或刷新预览缓存。
+
+任务字段与轮询约定见 backend/api_services.md。
+"""
+
 import json
 import os
 import shutil

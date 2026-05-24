@@ -216,6 +216,12 @@ export default {
   },
 }
 </script>
+/**
+ * 日期总览一级页，按年份和月份展示当前图库的时间入口。
+ * 用户通常从 /calendar 进入，再通过月份卡片跳到 BrowsePage 的 calendar 契约详情页。
+ * 这里应只保留“月份入口”层级的聚合逻辑；月份内的筛选、选择和详情交互统一交给 BrowsePage 处理。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .page { @apply flex flex-col gap-6; }

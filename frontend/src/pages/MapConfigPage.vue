@@ -255,6 +255,12 @@ export default {
   },
 }
 </script>
+/**
+ * 地图配置页，用于编辑地图中心点、缩放级别与相关底图参数。
+ * 常见入口来自设置页中的地图配置入口，对应路由 /settings/map-config。
+ * 这里主要处理配置读写和表单校验；地图渲染本身在 MapManagementPage 与 map 组件目录中实现。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .map-config-page {

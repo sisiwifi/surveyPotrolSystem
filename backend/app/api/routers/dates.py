@@ -1,3 +1,12 @@
+"""日期视图接口。
+
+主要职责：
+- 生成年份/月分组的日期总览。
+- 返回某个月份下的相册与图片混合列表，供 CalendarOverview 和 BrowsePage(calendar) 复用。
+
+分组模型、排序与可见性规则见 backend/api_services.md。
+"""
+
 from collections import defaultdict
 from datetime import datetime
 

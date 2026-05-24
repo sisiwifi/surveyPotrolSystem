@@ -1084,6 +1084,12 @@ export default {
   },
 }
 </script>
+/**
+ * 图库管理一级页，负责发起导入、展示最近导入预览和图库总览预览。
+ * 常见入口是 /gallery；导入后再通过 recent/all 预览跳到 BrowsePage 对应契约的二级浏览。
+ * 维护重点是导入批次状态、recent 快照聚合和 overview 预览条的行为，导入协议细节请查 backend/api_services.md。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .page { @apply flex flex-col gap-6; }

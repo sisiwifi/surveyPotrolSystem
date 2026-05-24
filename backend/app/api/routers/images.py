@@ -1,3 +1,12 @@
+"""图片元数据与图片级批量操作接口。
+
+主要职责：
+- 提供元数据读取、重命名/改分类/改时间、打开图片，以及批量标签匹配与应用。
+- 被 BrowsePage 详情浮层、搜索修复链路和批量标签操作复用。
+
+这里会触发物理文件移动与批量写回，修改前请先看 backend/api_services.md。
+"""
+
 import os
 import shutil
 import subprocess

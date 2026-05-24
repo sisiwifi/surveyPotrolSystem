@@ -4,6 +4,20 @@ picTagView 是一个本地图片管理系统，后端基于 FastAPI + SQLModel +
 
 本文档重点说明：**如何在完全空的工程拉取后，从零开始安装依赖并启动整个项目**。
 
+## 功能与代码速查
+
+如果你只是想快速定位代码，而不是从头读完整文档，可以先按下面的映射找入口：
+
+| 关注点 | 先看哪里 | 深入文档 |
+| --- | --- | --- |
+| 首页、图库、搜索、标签、设置等一级页 | `frontend/src/pages/*.vue` 文件头说明 | `frontend/Frontend_README.md` |
+| 月份、标签、收藏、搜索结果、回收站等二级浏览 | `frontend/src/pages/BrowsePage.vue` 文件头说明 | `frontend/commonBrowsePage.md` |
+| 前端路由入口 | `frontend/src/router/index.js` | `frontend/Frontend_README.md` |
+| 后端接口职责与端点 | `backend/app/api/**/*.py` 文件头说明 | `backend/api_services.md` |
+| 后端结构、运行目录与服务层 | `backend/app/main.py`、`backend/app/services/*` | `backend/techReadme.md` |
+
+推荐的阅读顺序是：先看目标文件头注释，再看对应专题文档；这样通常不需要把整份说明书从头翻到尾。
+
 ## 1. 环境要求
 
 在开始之前，请先准备以下环境：

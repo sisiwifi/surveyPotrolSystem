@@ -1,3 +1,12 @@
+"""主分类管理接口。
+
+主要职责：
+- 提供主分类列表、增删改与批量启停/删除操作。
+- 分类可见性会影响首页统计、浏览结果和搜索范围，因此默认分类规则要保持稳定。
+
+分类约束与批量行为见 backend/api_services.md。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

@@ -1,3 +1,12 @@
+"""基础接口与导入/刷新入口。
+
+主要职责：
+- 提供健康检查、导入图片、库内图片总数和 quick/full 刷新入口。
+- GalleryPage、缩略图修复链路和一键导入流程都会经过这里。
+
+导入协议与 refresh 模式见 backend/api_services.md。
+"""
+
 import json
 from typing import List, Optional
 

@@ -1,3 +1,12 @@
+"""图库管理聚合接口。
+
+主要职责：
+- 为 GalleryPage 提供 recent/all 两套一级 overview 和二级 items 数据。
+- 把最近导入快照与全库可见图片转换成可直接喂给 BrowsePage 的混合列表。
+
+overview/items 的语义和返回结构见 backend/api_services.md。
+"""
+
 from __future__ import annotations
 
 from datetime import datetime

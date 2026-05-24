@@ -2,6 +2,18 @@
 
 本文档按“路由层 -> 服务层 -> 当前协议细节”说明后端实现，内容以 `backend/app/api/routers/*.py` 与 `backend/app/services/*.py` 的当前代码为准，适用于当前仓库 `D:\Python_projects\surveyPotrolSystem_main`。
 
+## 接口文件速查
+
+如果你想快速判断一个接口文件是否值得深读，可以先看下面的分工表，再回到对应模块头注释：
+
+| 文件/分组 | 主要服务的前端页面 | 建议先看 |
+| --- | --- | --- |
+| `basic.py`、`gallery.py`、`home.py` | `GalleryPage.vue`、`HomePage.vue` | 导入、overview、recent/all 聚合 |
+| `dates.py`、`albums.py`、`collections.py`、`trash.py` | `BrowsePage.vue` 各类二级契约 | 列表返回结构、详情动作 |
+| `images.py`、`search.py`、`tags.py` | `SearchPage.vue`、`TagOverviewPage.vue`、详情浮层菜单 | 元数据修改、搜索模式、Tag 生命周期 |
+| `system.py`、`cache.py`、`categories.py` | `SettingsPage.vue`、`MapConfigPage.vue`、预览缓存链路 | 配置项、任务轮询、主分类规则 |
+| `common.py`、`schemas.py`、`routes.py` | 全部前端页面 | URL 归一化、字段契约、router 聚合顺序 |
+
 ## 1. 分层概览
 
 | 层级 | 位置 | 当前职责 |
@@ -86,7 +98,7 @@
 | `cache.py` | `GET /api/thumbnails/cache/status/{task_id}` | 按 `cursor` 增量轮询缓存任务结果 |
 | `system.py` | `GET/POST /api/system/cache-thumb-setting` | 浏览缓存缩略图尺寸配置 |
 | `system.py` | `GET/POST /api/system/month-cover-setting` | 月份封面尺寸配置 |
-| `system.py` | `GET/POST /api/system/page-config` | 浏览模式与滚动窗口范围配置 |
+| `system.py` | `GET/POST /api/system/page-config` | 固定分页配置、全局每页数量与兼容缓存窗口参数 |
 | `system.py` | `GET/POST /api/system/tag-match-setting` | 文件名自动打标配置 |
 | `system.py` | `GET /api/system/viewer-info` | 当前系统默认查看器与应用内偏好 |
 | `system.py` | `GET /api/system/image-viewers` | 枚举可用查看器并返回图标 |

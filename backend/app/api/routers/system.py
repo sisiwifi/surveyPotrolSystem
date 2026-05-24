@@ -1,3 +1,12 @@
+"""系统设置与查看器接口。
+
+主要职责：
+- 持久化分页配置、地图配置、缩略图尺寸、月份封面、tag match 和查看器偏好。
+- 被 SettingsPage、MapConfigPage、BrowsePage 的 pageConfig 读写直接依赖。
+
+设置项默认值与语义见 backend/api_services.md、backend/techReadme.md。
+"""
+
 from fastapi import APIRouter, HTTPException
 
 from app.api.schemas import (
@@ -19,6 +28,7 @@ from app.services.app_settings_service import (
     DEFAULT_MAP_ZOOM,
     DEFAULT_MONTH_COVER_SIZE_PX,
     DEFAULT_PAGE_BROWSE_MODE,
+    DEFAULT_PAGE_SIZE,
     DEFAULT_PAGE_SCROLL_WINDOW_SIZE,
     MAX_CACHE_SHORT_SIDE_PX,
     MAX_MAP_ZOOM,
@@ -117,8 +127,10 @@ def get_page_config_api() -> PageConfigResponse:
     return PageConfigResponse(
         browse_mode=data.get("browse_mode", DEFAULT_PAGE_BROWSE_MODE),
         scroll_window_size=data.get("scroll_window_size", DEFAULT_PAGE_SCROLL_WINDOW_SIZE),
+        page_size=data.get("page_size", DEFAULT_PAGE_SIZE),
         default_browse_mode=DEFAULT_PAGE_BROWSE_MODE,
         default_scroll_window_size=DEFAULT_PAGE_SCROLL_WINDOW_SIZE,
+        default_page_size=DEFAULT_PAGE_SIZE,
     )
 
 
@@ -132,8 +144,10 @@ def set_page_config_api(body: PageConfigRequest) -> PageConfigResponse:
     return PageConfigResponse(
         browse_mode=next_setting.get("browse_mode", DEFAULT_PAGE_BROWSE_MODE),
         scroll_window_size=next_setting.get("scroll_window_size", DEFAULT_PAGE_SCROLL_WINDOW_SIZE),
+        page_size=next_setting.get("page_size", DEFAULT_PAGE_SIZE),
         default_browse_mode=DEFAULT_PAGE_BROWSE_MODE,
         default_scroll_window_size=DEFAULT_PAGE_SCROLL_WINDOW_SIZE,
+        default_page_size=DEFAULT_PAGE_SIZE,
     )
 
 

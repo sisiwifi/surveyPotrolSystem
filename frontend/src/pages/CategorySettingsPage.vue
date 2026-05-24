@@ -151,6 +151,12 @@
 </template>
 
 <script>
+/**
+ * 主分类配置页，负责分类的新建、编辑、启停与删除回退提示。
+ * 常见入口是设置页里的“主分类管理”，对应路由 /settings/categories。
+ * 维护重点是默认主分类不可编辑/删除，以及分类状态变化会影响首页、浏览页和搜索页的可见图片集合。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 import BreadcrumbHeader from '../components/BreadcrumbHeader.vue'
 import CategoryFormDialog from '../components/CategoryFormDialog.vue'
 import ConfirmationDialog from '../components/ConfirmationDialog.vue'

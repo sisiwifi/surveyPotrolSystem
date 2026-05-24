@@ -1088,6 +1088,12 @@ export default {
   },
 }
 </script>
+/**
+ * 顶层搜索页，负责统一解析文本、按图和时间范围搜索，并承接一级结果预览。
+ * 用户从 /search 进入，完整结果列表会继续跳转到 BrowsePage 的 search-results 契约页。
+ * 维护重点是查询模式识别、文件上传 quick hash 搜索，以及一级预览和二级结果路由参数保持一致。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .top-level-page {

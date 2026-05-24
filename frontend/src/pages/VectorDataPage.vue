@@ -54,6 +54,12 @@ export default {
   },
 }
 </script>
+/**
+ * 矢量数据入口页，当前作为 GIS 扩展能力的占位与规划说明页面。
+ * 用户从 /vectors 进入，用来承接未来的 SHP、DWG 等地理资源导入和照片关联流程。
+ * 现阶段应把它视为路线图页；真正的数据读写与图层逻辑接入前，请先补齐对应后端接口和 Frontend_README 说明。
+ * 相关文档：frontend/Frontend_README.md、backend/techReadme.md。
+ */
 
 <style scoped lang="css">
 .vector-data-page {

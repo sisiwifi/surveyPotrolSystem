@@ -1,8 +1,11 @@
 <template>
   <article class="media-card" :class="cardClasses">
     <div class="media-card__visual">
+      <div v-if="unavailable" class="media-card__unavailable">
+        <span class="media-card__unavailable-label">{{ unavailableLabel }}</span>
+      </div>
       <img
-        v-if="src"
+        v-else-if="src"
         class="media-card__img"
         :src="src"
         :alt="alt"
@@ -15,6 +18,7 @@
       </div>
 
       <button
+        v-if="showSelectionControl"
         class="media-card__pick"
         type="button"
         :disabled="disabled"
@@ -90,8 +94,11 @@ export default {
     itemType: { type: String, default: 'image' },
     selected: { type: Boolean, default: false },
     disabled: { type: Boolean, default: false },
+    showSelectionControl: { type: Boolean, default: false },
     coverMarked: { type: Boolean, default: false },
     mediaBadgeLabel: { type: String, default: '' },
+    unavailable: { type: Boolean, default: false },
+    unavailableLabel: { type: String, default: '预览不可用' },
   },
   emits: ['toggle-info', 'details', 'toggle-select', 'img-error'],
   computed: {
@@ -100,6 +107,7 @@ export default {
         'is-selected': this.selected,
         'is-disabled': this.disabled,
         'is-album': this.itemType === 'album',
+        'has-selection-control': this.showSelectionControl,
       }
     },
     hasInfoTags() {
@@ -150,7 +158,7 @@ export default {
 
 .media-card__visual {
   position: relative;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
   background: linear-gradient(160deg, #e2e8f0 0%, #f8fafc 100%);
 }
@@ -172,6 +180,25 @@ export default {
   background: linear-gradient(90deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
   background-size: 200% 100%;
   animation: media-card-wave 1.4s ease-in-out infinite;
+}
+
+.media-card__unavailable {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, rgba(226, 232, 240, 0.96), rgba(248, 250, 252, 0.98));
+}
+
+.media-card__unavailable-label {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.78);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
 }
 
 .media-card__skeleton-label {

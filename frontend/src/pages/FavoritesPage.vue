@@ -220,6 +220,12 @@ export default {
   },
 }
 </script>
+/**
+ * 收藏夹总览页，展示当前仍有可见图片的收藏夹入口卡片。
+ * 用户从 /favorites 进入，点击具体收藏夹后会切到 BrowsePage 的 collection 契约详情页。
+ * 维护时重点关注封面预览、缓存缩略图队列和收藏夹总数统计的一致性，不在这里重复实现二级浏览逻辑。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .page {

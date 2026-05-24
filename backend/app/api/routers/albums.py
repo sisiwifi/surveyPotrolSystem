@@ -1,3 +1,12 @@
+"""相册浏览与封面接口。
+
+主要职责：
+- 按物理路径或 public_id 返回相册详情。
+- 支持打开相册目录和设置手动封面，主要服务 BrowsePage 的相册层级浏览。
+
+相册字段与前端契约关系见 backend/api_services.md、frontend/commonBrowsePage.md。
+"""
+
 import os
 import subprocess
 import sys

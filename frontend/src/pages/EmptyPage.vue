@@ -14,6 +14,12 @@
 </template>
 
 <script>
+/**
+ * 早期占位页，当前主要保留给未接入完成的一级入口或临时空态实验使用。
+ * 它不是当前标签总览的正式实现；正式标签页已经迁移到 TagOverviewPage.vue。
+ * 如果后续要复用本页，建议继续把它当“轻量占位模板”，不要把真实业务逻辑堆回这里。
+ * 相关文档：frontend/Frontend_README.md。
+ */
 import TopLevelPageHeader from './TopLevelPageHeader.vue'
 
 export default {

@@ -2,6 +2,22 @@
 
 本文档描述前端的当前页面结构、路由、共享浏览壳和运行约定，内容以 `frontend/src` 下的现行代码为准。
 
+## 页面与代码速查
+
+如果你的目标是快速定位页面职责，建议先读对应文件头注释，再根据下表跳转到专题文档：
+
+| 页面/文件 | 主要用途 | 继续查阅 |
+| --- | --- | --- |
+| `src/pages/HomePage.vue` | 首页统计卡与标签墙 | 本文档 4.0、小节中的 `/api/home/overview` |
+| `src/pages/GalleryPage.vue` | 导入、最近导入预览、图库总览预览 | 本文档 4.1、`backend/api_services.md` |
+| `src/pages/SearchPage.vue` | 顶层搜索入口与一级预览 | 本文档 4.2、`backend/api_services.md` |
+| `src/pages/TagOverviewPage.vue` | 标签总览、编辑入口与统计侧栏 | 本文档 4.3、`backend/api_services.md` |
+| `src/pages/CalendarOverview.vue` | 年/月视图入口 | 本文档 3、4.6 |
+| `src/pages/FavoritesPage.vue` | 收藏夹总览 | 本文档 4.4、`backend/api_services.md` |
+| `src/pages/SettingsPage.vue` / `CategorySettingsPage.vue` / `MapConfigPage.vue` | 系统设置、主分类、地图参数 | 本文档 4.5、`backend/api_services.md` |
+| `src/pages/BrowsePage.vue` | 所有二级浏览壳 | `frontend/commonBrowsePage.md` |
+| `src/router/index.js` | 路由入口与 BrowsePage 复用关系 | 本文档 3 |
+
 ## 1. 项目位置与技术栈
 
 - 当前仓库根目录：`D:\Python_projects\surveyPotrolSystem_main`
@@ -35,7 +51,7 @@ frontend/
 - `src/pages/`：一级页、`BrowsePage.vue`、`TagOverviewPage.vue`、设置页等
 - `src/components/`：详情浮层、Tag/收藏菜单、分页条、主分类和确认弹窗等
 - `src/utils/commonBrowsePage.js`：统一浏览页契约
-- `src/utils/pageConfig.js`：页面浏览模式读写与本地缓存
+- `src/utils/pageConfig.js`：固定分页配置、每页数量与本地缓存
 - `src/pages/topLevelPageConvention.js`：顶层页导航、统一搜索输入逻辑和顶层缩略图约定
 
 ## 3. 当前路由
@@ -141,7 +157,7 @@ frontend/
 - 当前已接入的设置项：
   - 浏览缓存缩略图尺寸
   - 月份封面尺寸
-  - 页面浏览模式与滚动窗口范围
+  - 固定分页配置与每页数量说明（默认 `20`，可选 `20/40/60/100/200`）
   - Tag JSON 导入导出
   - 内部“管理标签”二级面板：表格查看 `序号 / id / name / display_name / description / type / 样式预览`，支持列筛选、勾选、Shift 连选、Ctrl/Cmd + A 全选当前视图、分页切换、行末编辑、批量新增与批量删除
   - 图片查看器偏好
@@ -172,7 +188,7 @@ frontend/
   - 选择模式
   - 详情浮层
   - Tag 菜单与收藏菜单
-  - 滚动/分页浏览模式
+  - 固定分页浏览与每页数量切换
   - 预览修复与缓存缩略图生成
 - BrowsePage 的网格卡片、列表缩略图和详情浮层会统一显示 GIF / 动态 WEBP 标记；数据源来自各浏览接口和 `/api/images/meta` 的同一组动图元信息字段。
 - 所有 BrowsePage 路由的默认 header 都会提供一个“筛选”按钮，点击后打开带遮罩的二级筛选面板，并在面板打开期间锁定页面滚动。

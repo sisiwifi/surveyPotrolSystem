@@ -860,6 +860,12 @@ export default {
   },
 }
 </script>
+/**
+ * 标签总览页，负责标签列表浏览、局部分组筛选、编辑入口和高频/最近使用统计。
+ * 用户从 /tags 进入，点击具体标签后会跳到 BrowsePage 的 tag 契约详情页。
+ * 维护重点是标签分组/折叠逻辑与草稿标签创建链路，复杂表单与批量操作可参考设置页标签管理面板。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .tag-overview-page {

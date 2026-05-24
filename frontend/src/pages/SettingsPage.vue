@@ -180,7 +180,7 @@
 
       <div class="settings-card">
         <h3 class="card-title">页面配置</h3>
-        <p class="card-desc">统一控制 Common Browse 页面契约的浏览方式；分页模式会启用页码导航，滚动模式保持当前布局。</p>
+        <p class="card-desc">BrowsePage 已固定为分页浏览；每页显示数量在分页条中调整，并会作为全局设置记忆。</p>
 
         <div class="setting-row setting-row--compact">
           <div class="setting-info">
@@ -194,40 +194,11 @@
 
         <div class="setting-row setting-row--compact">
           <div class="setting-info">
-            <span class="setting-label">浏览方式</span>
-            <span class="setting-desc">滚动浏览保持当前瀑布流与滚动窗口；分页浏览会在浏览页与回收站页启用页码分页。</span>
-          </div>
-          <div class="setting-select-wrap">
-            <select
-              class="setting-select"
-              :value="pageBrowseMode"
-              :disabled="pageConfigLoading || pageConfigSaving"
-              @change="onPageBrowseModeChange"
-            >
-              <option value="scroll">滚动浏览</option>
-              <option value="paged">分页浏览</option>
-            </select>
-          </div>
-        </div>
-
-        <div v-if="pageBrowseMode === 'scroll'" class="setting-row setting-row--compact">
-          <div class="setting-info">
-            <span class="setting-label">滚动窗口范围</span>
-            <span class="setting-desc">控制滚动浏览时围绕当前锚点预热的预览数量，默认 100，即锚点前后各约 50 项。</span>
-          </div>
-          <div class="setting-select-wrap">
-            <select
-              class="setting-select"
-              :value="String(pageScrollWindowSize)"
-              :disabled="pageConfigLoading || pageConfigSaving"
-              @change="onPageScrollWindowSizeChange"
-            >
-              <option
-                v-for="option in pageScrollWindowOptions"
-                :key="option"
-                :value="String(option)"
-              >{{ option }}</option>
-            </select>
+            <span class="setting-label">每页显示数量</span>
+            <span class="setting-desc">
+              <template v-if="pageConfigLoading">正在加载页面配置…</template>
+              <template v-else>当前默认每页 {{ pageSize }} 项，可选 {{ pageSizeOptionsLabel }}。</template>
+            </span>
           </div>
         </div>
 
@@ -404,11 +375,8 @@ import TagManagerPanel from '../components/TagManagerPanel.vue'
 import TopLevelPageHeader from './TopLevelPageHeader.vue'
 import TagImportDialog from '../components/TagImportDialog.vue'
 import {
-  PAGE_BROWSE_MODE_PAGED,
-  PAGE_BROWSE_MODE_SCROLL,
-  PAGE_SCROLL_WINDOW_OPTIONS,
+  PAGE_SIZE_OPTIONS,
   fetchPageConfig,
-  savePageConfig,
 } from '../utils/pageConfig'
 
 const API_BASE = 'http://127.0.0.1:8000'
@@ -452,10 +420,8 @@ export default {
       monthCoverSizeMax: 2000,
       monthCoverSettingError: '',
       pageConfigLoading: false,
-      pageConfigSaving: false,
-      pageBrowseMode: PAGE_BROWSE_MODE_SCROLL,
-      pageScrollWindowSize: 100,
-      pageScrollWindowOptions: PAGE_SCROLL_WINDOW_OPTIONS,
+      pageSize: 20,
+      pageSizeOptions: PAGE_SIZE_OPTIONS,
       pageConfigError: '',
       floatingMessage: {
         visible: false,
@@ -521,6 +487,10 @@ export default {
       if (this.parsedMonthCoverSize > this.monthCoverSizeMax) return false
       return this.parsedMonthCoverSize !== this.monthCoverSize
     },
+
+    pageSizeOptionsLabel() {
+      return this.pageSizeOptions.join(' / ')
+    },
   },
 
   created() {
@@ -563,60 +533,11 @@ export default {
       this.pageConfigError = ''
       try {
         const config = await fetchPageConfig()
-        this.pageBrowseMode = config.browseMode || PAGE_BROWSE_MODE_SCROLL
-        this.pageScrollWindowSize = config.scrollWindowSize || 100
+        this.pageSize = config.pageSize || 20
       } catch (err) {
         this.pageConfigError = `加载页面配置失败：${toErrorMessage(err)}`
       } finally {
         this.pageConfigLoading = false
-      }
-    },
-
-    async onPageBrowseModeChange(event) {
-      const nextMode = String(event?.target?.value || PAGE_BROWSE_MODE_SCROLL)
-      const normalizedMode = nextMode === PAGE_BROWSE_MODE_PAGED ? PAGE_BROWSE_MODE_PAGED : PAGE_BROWSE_MODE_SCROLL
-      if (normalizedMode === this.pageBrowseMode) return
-
-      this.pageConfigSaving = true
-      this.pageConfigError = ''
-      try {
-        const savedConfig = await savePageConfig({
-          browseMode: normalizedMode,
-          scrollWindowSize: this.pageScrollWindowSize,
-        })
-        this.pageBrowseMode = savedConfig.browseMode
-        this.pageScrollWindowSize = savedConfig.scrollWindowSize
-        this.showFloatingMessage('success', `浏览方式已切换为${savedConfig.browseMode === PAGE_BROWSE_MODE_PAGED ? '分页浏览' : '滚动浏览'}。`)
-      } catch (err) {
-        this.pageConfigError = `保存页面配置失败：${toErrorMessage(err)}`
-        this.showFloatingMessage('error', this.pageConfigError)
-      } finally {
-        this.pageConfigSaving = false
-      }
-    },
-
-    async onPageScrollWindowSizeChange(event) {
-      const nextSize = Number.parseInt(String(event?.target?.value || ''), 10)
-      const normalizedSize = PAGE_SCROLL_WINDOW_OPTIONS.includes(nextSize)
-        ? nextSize
-        : 100
-      if (normalizedSize === this.pageScrollWindowSize) return
-
-      this.pageConfigSaving = true
-      this.pageConfigError = ''
-      try {
-        const savedConfig = await savePageConfig({
-          browseMode: this.pageBrowseMode,
-          scrollWindowSize: normalizedSize,
-        })
-        this.pageBrowseMode = savedConfig.browseMode
-        this.pageScrollWindowSize = savedConfig.scrollWindowSize
-        this.showFloatingMessage('success', `滚动窗口范围已更新为 ${savedConfig.scrollWindowSize}。`)
-      } catch (err) {
-        this.pageConfigError = `保存页面配置失败：${toErrorMessage(err)}`
-        this.showFloatingMessage('error', this.pageConfigError)
-      } finally {
-        this.pageConfigSaving = false
       }
     },
 
@@ -940,6 +861,12 @@ export default {
   },
 }
 </script>
+/**
+ * 系统设置页，集中管理缩略图、分页习惯、查看器偏好和标签管理面板入口。
+ * 常见入口是 /settings；部分二级功能会在本页内部切换面板，而不是额外创建独立路由。
+ * 维护重点是设置项与 /api/system/* 契约保持同步，以及 tag-manager 子面板的批量编辑流程。
+ * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
+ */
 
 <style scoped lang="css">
 .page { @apply flex flex-col gap-4; }
