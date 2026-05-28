@@ -15,7 +15,7 @@
 | `src/pages/CalendarOverview.vue` | 年/月视图入口 | 本文档 3、4.6 |
 | `src/pages/FavoritesPage.vue` | 收藏夹总览 | 本文档 4.4、`backend/api_services.md` |
 | `src/pages/SettingsPage.vue` / `CategorySettingsPage.vue` / `MapConfigPage.vue` | 系统设置、主分类、地图参数 | 本文档 4.5、`backend/api_services.md` |
-| `src/pages/BrowsePage.vue` | 所有二级浏览壳 | `frontend/commonBrowsePage.md` |
+| `src/pages/BrowsePage/index.vue` | 所有二级浏览壳 | `frontend/commonBrowsePage.md` |
 | `src/router/index.js` | 路由入口与 BrowsePage 复用关系 | 本文档 3 |
 
 ## 1. 项目位置与技术栈
@@ -48,8 +48,10 @@ frontend/
 
 关键目录当前分工：
 
-- `src/pages/`：一级页、`BrowsePage.vue`、`TagOverviewPage.vue`、设置页等
-- `src/components/`：详情浮层、Tag/收藏菜单、分页条、主分类和确认弹窗等
+- `src/pages/`：一级页、`BrowsePage/index.vue` 页面壳、`TagOverviewPage.vue`、设置页等
+- `src/pages/BrowsePage/components/`：BrowsePage 专属组件（筛选面板、卡片、标签/收藏菜单）
+- `src/pages/BrowsePage/logic/`：BrowsePage 的共享状态、计算、布局、选择和业务动作模块
+- `src/components/`：跨页面复用组件（详情浮层、分页条、确认弹窗等）
 - `src/utils/commonBrowsePage.js`：统一浏览页契约
 - `src/utils/pageConfig.js`：固定分页配置、每页数量与本地缓存
 - `src/pages/topLevelPageConvention.js`：顶层页导航、统一搜索输入逻辑和顶层缩略图约定
@@ -60,26 +62,26 @@ frontend/
 | --- | --- | --- |
 | `/` | `HomePage.vue` | 主页仪表板：精确统计卡 + 连续滚动的可见 Tag 墙 |
 | `/search` | `SearchPage.vue` | 单输入搜索、本地文件搜图、时间范围过滤与一级虚拟化预览 |
-| `/search/results` | `BrowsePage.vue` | 完整搜索结果二级浏览，`browseContract = 'search-results'`，支持复用 `q` 与 `quick_hash` |
+| `/search/results` | `BrowsePage/index.vue` | 完整搜索结果二级浏览，`browseContract = 'search-results'`，支持复用 `q` 与 `quick_hash` |
 | `/tags` | `TagOverviewPage.vue` | 标签总览与编辑入口，页头固定在主滚动区顶部 |
-| `/tags/:tagId` | `BrowsePage.vue` | 标签二级浏览，`browseContract = 'tag'` |
+| `/tags/:tagId` | `BrowsePage/index.vue` | 标签二级浏览，`browseContract = 'tag'` |
 | `/gallery` | `GalleryPage.vue` | 图库管理父页，包含导入、刷新、最近导入预览、图库总览预览，`meta.keepAlive = true` |
-| `/gallery/recent` | `BrowsePage.vue` | 最近导入二级浏览，`browseContract = 'gallery-recent'` |
-| `/gallery/recent/:group/:albumPath+` | `BrowsePage.vue` | 最近导入中的相册层级浏览，仍使用 `browseContract = 'gallery-recent'` |
-| `/gallery/all` | `BrowsePage.vue` | 图库总览二级浏览，`browseContract = 'gallery-all'` |
-| `/gallery/all/:group/:albumPath+` | `BrowsePage.vue` | 图库总览中的相册层级浏览，仍使用 `browseContract = 'gallery-all'` |
+| `/gallery/recent` | `BrowsePage/index.vue` | 最近导入二级浏览，`browseContract = 'gallery-recent'` |
+| `/gallery/recent/:group/:albumPath+` | `BrowsePage/index.vue` | 最近导入中的相册层级浏览，仍使用 `browseContract = 'gallery-recent'` |
+| `/gallery/all` | `BrowsePage/index.vue` | 图库总览二级浏览，`browseContract = 'gallery-all'` |
+| `/gallery/all/:group/:albumPath+` | `BrowsePage/index.vue` | 图库总览中的相册层级浏览，仍使用 `browseContract = 'gallery-all'` |
 | `/calendar` | `CalendarOverview.vue` | 日期总览 |
-| `/calendar/:group` | `BrowsePage.vue` | 月份浏览 |
-| `/calendar/:group/:albumPath+` | `BrowsePage.vue` | 相册层级浏览 |
+| `/calendar/:group` | `BrowsePage/index.vue` | 月份浏览 |
+| `/calendar/:group/:albumPath+` | `BrowsePage/index.vue` | 相册层级浏览 |
 | `/favorites` | `FavoritesPage.vue` | 收藏夹总览 |
-| `/favorites/:collectionId` | `BrowsePage.vue` | 收藏夹二级浏览，`browseContract = 'collection'` |
+| `/favorites/:collectionId` | `BrowsePage/index.vue` | 收藏夹二级浏览，`browseContract = 'collection'` |
 | `/settings` | `SettingsPage.vue` | 设置页 |
 | `/settings/categories` | `CategorySettingsPage.vue` | 主分类配置 |
-| `/trash` | `BrowsePage.vue` | 回收站浏览，`browseContract = 'trash'` |
+| `/trash` | `BrowsePage/index.vue` | 回收站浏览，`browseContract = 'trash'` |
 
 说明：
 
-- `BrowsePage.vue` 在多个路由间通过 `meta.reuseKey = 'browse'` 复用实例。
+- `BrowsePage/index.vue` 在多个路由间通过 `meta.reuseKey = 'browse'` 复用实例。
 - `GalleryPage.vue` 通过 `meta.keepAlive = true` 保留导入中的本地状态和队列。
 
 ## 4. 主要页面与交互
@@ -116,7 +118,7 @@ frontend/
 
 ### 4.2 `SearchPage.vue`
 
-- 是当前顶层搜索入口，而不是直接把全部结果放进 `BrowsePage.vue`。
+- 是当前顶层搜索入口，而不是直接把全部结果放进 `BrowsePage/index.vue`。
 - 输入框通过 `detectSearchMode()` 自动识别：
   - 普通文本 -> 文件名 / Tag 混合搜索
   - `name:xxx` 或 `$xxx` -> 文件名 搜索
@@ -131,7 +133,7 @@ frontend/
 - 搜索详情浮层中的“主分类”会显示分类名称；“匹配方式”会按搜索语义显示为“按文件搜索 / 文件名匹配 / 标签匹配 / 按导入时间搜索 / 按创建时间搜索”。
 - 搜索主结果卡片只使用 temp/cache 缩略图作为预览来源；缺失时先显示占位，再通过 targeted refresh 拉起缩略图修复，不再用原图作为主预览兜底；修复后仍失败时进入“预览不可用”终态，避免无限加载。
 - 如果搜索结果对应的是多帧图片，卡片和详情浮层会显示 `GIF` / `WEBP` 标记；标记依赖后端返回的 `is_animated + animation_meta`，其中 `animation_meta.format` 只在动图时返回，而不是前端自行猜文件后缀。
-- 点击“查看全部”后，会带着 `q` 查询参数进入 `/search/results`；如果当前是 `file:` 搜索，还会一并带上 `quick_hash`，完整结果列表交给 `BrowsePage.vue` 的 `search-results` 契约处理。
+- 点击“查看全部”后，会带着 `q` 查询参数进入 `/search/results`；如果当前是 `file:` 搜索，还会一并带上 `quick_hash`，完整结果列表交给 `BrowsePage/index.vue` 的 `search-results` 契约处理。
 
 ### 4.3 `TagOverviewPage.vue`
 
@@ -171,7 +173,7 @@ frontend/
   - `activePanel = 'tag-filter'`：保留的占位子面板，入口按钮当前仍被注释，不会在用户界面里显示
 - 注意：后端已有 `/api/system/tag-match-setting`，但设置页目前没有实际 UI 去编辑它。
 
-### 4.6 `BrowsePage.vue`
+### 4.6 `BrowsePage/index.vue`
 
 - 是当前最核心的共享浏览壳。
 - 通过 `browseContract` 切换七类数据源：
@@ -248,7 +250,7 @@ frontend/
 - 数据归一化
 - 预览修复后的刷新策略
 
-页面布局、选择状态、详情浮层状态、Tag/收藏菜单状态仍由 `BrowsePage.vue` 自己维护，不在契约内部。
+页面布局、选择状态、详情浮层状态、Tag/收藏菜单状态由 `src/pages/BrowsePage/logic/*.js` 模块维护，不在契约内部。
 
 ## 7. 与后端的当前约定
 
@@ -265,7 +267,7 @@ const API_BASE = 'http://127.0.0.1:8000'
 - `src/pages/topLevelPageConvention.js`
 - `src/utils/commonBrowsePage.js`
 - `src/utils/pageConfig.js`
-- `src/pages/BrowsePage.vue`
+- `src/pages/BrowsePage/logic/shared.js`
 - `src/pages/SettingsPage.vue`
 - `src/pages/CategorySettingsPage.vue`
 - `src/pages/CalendarOverview.vue`
@@ -295,7 +297,7 @@ const API_BASE = 'http://127.0.0.1:8000'
 - `browse_mode`: `scroll | paged`
 - `scroll_window_size`: `40, 60, ..., 200`
 
-这些配置会作用到所有复用 `BrowsePage.vue` 的契约页，包括搜索结果、标签、收藏、图库、日期和回收站。
+这些配置会作用到所有复用 `BrowsePage/index.vue` 的契约页，包括搜索结果、标签、收藏、图库、日期和回收站。
 
 工具模块会：
 

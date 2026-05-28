@@ -11,7 +11,7 @@ picTagView 是一个本地图片管理系统，后端基于 FastAPI + SQLModel +
 | 关注点 | 先看哪里 | 深入文档 |
 | --- | --- | --- |
 | 首页、图库、搜索、标签、设置等一级页 | `frontend/src/pages/*.vue` 文件头说明 | `frontend/Frontend_README.md` |
-| 月份、标签、收藏、搜索结果、回收站等二级浏览 | `frontend/src/pages/BrowsePage.vue` 文件头说明 | `frontend/commonBrowsePage.md` |
+| 月份、标签、收藏、搜索结果、回收站等二级浏览 | `frontend/src/pages/BrowsePage/index.vue` 文件头说明 | `frontend/commonBrowsePage.md` |
 | 前端路由入口 | `frontend/src/router/index.js` | `frontend/Frontend_README.md` |
 | 后端接口职责与端点 | `backend/app/api/**/*.py` 文件头说明 | `backend/api_services.md` |
 | 后端结构、运行目录与服务层 | `backend/app/main.py`、`backend/app/services/*` | `backend/techReadme.md` |

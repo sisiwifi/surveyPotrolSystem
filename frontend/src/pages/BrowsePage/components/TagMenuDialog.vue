@@ -91,7 +91,7 @@
 </template>
 
 <script>
-import { normalizeTagColors } from '../utils/tagColors'
+import { normalizeTagColors } from '../../../utils/tagColors'
 
 export default {
   name: 'TagMenuDialog',

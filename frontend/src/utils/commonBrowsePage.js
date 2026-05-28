@@ -366,6 +366,52 @@ function openGalleryScopedPrimary(_vm, item) {
   openImageItem(item)
 }
 
+function buildCachePageToken(vm, fallbackContractName = 'calendar') {
+  const contractName = vm?.pageContractName || fallbackContractName
+  if (contractName === 'search-results') {
+    const queryValue = String(vm?.$route?.query?.q || '').trim()
+    return `browse:search-results:${encodeURIComponent(queryValue || 'empty')}`
+  }
+  if (contractName === 'collection') {
+    return `browse:collection:${vm?.collectionPublicId || ''}`
+  }
+  if (contractName === 'tag') {
+    return `browse:tag:${vm?.currentBrowseTagId || 'unknown'}`
+  }
+  if (vm?.isAlbumMode) {
+    return `browse:${vm?.fullAlbumPath || ''}`
+  }
+  if (vm?.dateGroup) {
+    return `browse:${vm.dateGroup}`
+  }
+  return `browse:${contractName}`
+}
+
+function defaultActionBusyFallback() {
+  return {
+    title: '删除中',
+    message: '正在移动所选内容到回收站，请稍候…',
+  }
+}
+
+function trashActionBusyFallback() {
+  return {
+    title: '处理中',
+    message: '正在处理回收站操作，请稍候…',
+  }
+}
+
+function canPickContainerCoverInCalendar(vm) {
+  if (vm?.actionBusy) return false
+  if (!Array.isArray(vm?.containerImageItems) || !vm.containerImageItems.length) return false
+  return Boolean(vm?.isAlbumMode)
+}
+
+function canPickContainerCoverInCollection(vm) {
+  if (vm?.actionBusy) return false
+  return Array.isArray(vm?.containerImageItems) && vm.containerImageItems.length > 0
+}
+
 const calendarContract = {
   name: 'calendar',
   autoRepairMissingPreview: true,
@@ -373,6 +419,21 @@ const calendarContract = {
   emptyState: {
     icon: '📂',
     text: '此页面尚无内容。',
+  },
+  buildCachePageToken(vm) {
+    return buildCachePageToken(vm, 'calendar')
+  },
+  canPickContainerCover(vm) {
+    return canPickContainerCoverInCalendar(vm)
+  },
+  actionBusyFallback() {
+    return defaultActionBusyFallback()
+  },
+  getLoadErrorText() {
+    return ''
+  },
+  shouldHydrateSelectionDetailMetadata() {
+    return true
   },
   defaultSort(vm) {
     return {
@@ -485,6 +546,21 @@ const collectionContract = {
     icon: '☆',
     text: '当前收藏夹暂无可见图片。',
   },
+  buildCachePageToken(vm) {
+    return buildCachePageToken(vm, 'collection')
+  },
+  canPickContainerCover(vm) {
+    return canPickContainerCoverInCollection(vm)
+  },
+  actionBusyFallback() {
+    return defaultActionBusyFallback()
+  },
+  getLoadErrorText() {
+    return ''
+  },
+  shouldHydrateSelectionDetailMetadata() {
+    return true
+  },
   defaultSort() {
     return {
       sortBy: 'date',
@@ -551,6 +627,14 @@ const collectionContract = {
   runSecondaryAction(vm) {
     vm.moveSelectedToTrash()
   },
+  async afterCollectionMenuApply(vm, selectedCollection) {
+    if (selectedCollection?.public_id !== vm.collectionPublicId) return
+    await vm.reloadContractItemsPreservingAnchor({
+      preserveSelection: false,
+      reopenDetails: false,
+      runAfterLoad: true,
+    })
+  },
   previewRepairPayloadKey: 'image_ids',
   async afterPreviewRepair(vm, repairIds) {
     await vm.refreshPreviewMetadata(repairIds)
@@ -564,6 +648,21 @@ const tagContract = {
   emptyState: {
     icon: '🏷',
     text: '当前标签下暂无可见图片。',
+  },
+  buildCachePageToken(vm) {
+    return buildCachePageToken(vm, 'tag')
+  },
+  canPickContainerCover() {
+    return false
+  },
+  actionBusyFallback() {
+    return defaultActionBusyFallback()
+  },
+  getLoadErrorText() {
+    return ''
+  },
+  shouldHydrateSelectionDetailMetadata() {
+    return true
   },
   defaultSort() {
     return {
@@ -621,6 +720,23 @@ const tagContract = {
   runSecondaryAction(vm) {
     vm.moveSelectedToTrash()
   },
+  afterTagSaved(vm, normalizedTag, savedTag) {
+    if (!normalizedTag || vm.albumInfo?.id !== normalizedTag.id) return
+    vm.albumInfo = {
+      ...vm.albumInfo,
+      id: normalizedTag.id,
+      public_id: normalizedTag.publicId || vm.albumInfo.public_id || '',
+      title: normalizedTag.displayName || normalizedTag.name || vm.albumInfo.title,
+      description: normalizedTag.description || '',
+      name: normalizedTag.name || '',
+      display_name: normalizedTag.displayName || normalizedTag.name || vm.albumInfo.display_name || '',
+      type: normalizedTag.type || vm.albumInfo.type || 'normal',
+      usage_count: Number(savedTag?.usage_count ?? vm.albumInfo.usage_count ?? 0),
+      last_used_at: String(savedTag?.last_used_at || vm.albumInfo.last_used_at || ''),
+      metadata: normalizedTag.metadata || {},
+      photo_count: vm.items.length,
+    }
+  },
   previewRepairPayloadKey: 'image_ids',
   async afterPreviewRepair(vm, repairIds) {
     await vm.refreshPreviewMetadata(repairIds)
@@ -634,6 +750,21 @@ const galleryRecentContract = {
   emptyState: {
     icon: '🕘',
     text: '最近导入为空。',
+  },
+  buildCachePageToken(vm) {
+    return buildCachePageToken(vm, 'gallery-recent')
+  },
+  canPickContainerCover() {
+    return false
+  },
+  actionBusyFallback() {
+    return defaultActionBusyFallback()
+  },
+  getLoadErrorText() {
+    return ''
+  },
+  shouldHydrateSelectionDetailMetadata() {
+    return true
   },
   defaultSort(vm) {
     return {
@@ -700,6 +831,21 @@ const searchResultsContract = {
   emptyState: {
     icon: '🔎',
     text: '当前搜索暂无结果。',
+  },
+  buildCachePageToken(vm) {
+    return buildCachePageToken(vm, 'search-results')
+  },
+  canPickContainerCover() {
+    return false
+  },
+  actionBusyFallback() {
+    return defaultActionBusyFallback()
+  },
+  getLoadErrorText() {
+    return ''
+  },
+  shouldHydrateSelectionDetailMetadata() {
+    return true
   },
   defaultSort() {
     return {
@@ -805,6 +951,21 @@ const galleryAllContract = {
     icon: '🖼',
     text: '图库中暂无可见内容。',
   },
+  buildCachePageToken(vm) {
+    return buildCachePageToken(vm, 'gallery-all')
+  },
+  canPickContainerCover() {
+    return false
+  },
+  actionBusyFallback() {
+    return defaultActionBusyFallback()
+  },
+  getLoadErrorText() {
+    return ''
+  },
+  shouldHydrateSelectionDetailMetadata() {
+    return true
+  },
   defaultSort(vm) {
     return {
       sortBy: vm.isAlbumMode ? 'alpha' : 'date',
@@ -869,6 +1030,21 @@ const trashContract = {
   emptyState: {
     icon: '🗑',
     text: '回收站为空。',
+  },
+  buildCachePageToken(vm) {
+    return buildCachePageToken(vm, 'trash')
+  },
+  canPickContainerCover() {
+    return false
+  },
+  actionBusyFallback() {
+    return trashActionBusyFallback()
+  },
+  getLoadErrorText(_vm, err) {
+    return err?.message || '加载回收站失败'
+  },
+  shouldHydrateSelectionDetailMetadata() {
+    return false
   },
   defaultSort() {
     return {

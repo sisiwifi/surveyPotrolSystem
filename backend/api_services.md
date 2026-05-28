@@ -9,7 +9,7 @@
 | 文件/分组 | 主要服务的前端页面 | 建议先看 |
 | --- | --- | --- |
 | `basic.py`、`gallery.py`、`home.py` | `GalleryPage.vue`、`HomePage.vue` | 导入、overview、recent/all 聚合 |
-| `dates.py`、`albums.py`、`collections.py`、`trash.py` | `BrowsePage.vue` 各类二级契约 | 列表返回结构、详情动作 |
+| `dates.py`、`albums.py`、`collections.py`、`trash.py` | `BrowsePage/index.vue` 各类二级契约 | 列表返回结构、详情动作 |
 | `images.py`、`search.py`、`tags.py` | `SearchPage.vue`、`TagOverviewPage.vue`、详情浮层菜单 | 元数据修改、搜索模式、Tag 生命周期 |
 | `system.py`、`cache.py`、`categories.py` | `SettingsPage.vue`、`MapConfigPage.vue`、预览缓存链路 | 配置项、任务轮询、主分类规则 |
 | `common.py`、`schemas.py`、`routes.py` | 全部前端页面 | URL 归一化、字段契约、router 聚合顺序 |

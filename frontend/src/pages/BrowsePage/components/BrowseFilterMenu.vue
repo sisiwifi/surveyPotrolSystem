@@ -302,7 +302,7 @@
 </template>
 
 <script>
-import { normalizeTagColors } from '../utils/tagColors'
+import { normalizeTagColors } from '../../../utils/tagColors'
 
 function createEmptyFilter() {
   return {

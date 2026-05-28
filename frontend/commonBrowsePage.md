@@ -1,10 +1,10 @@
 # Common Browse Page 契约说明
 
-本文档对应 `frontend/src/utils/commonBrowsePage.js` 的当前实现，描述 `BrowsePage.vue` 如何通过页面契约切换 `calendar`、`search-results`、`gallery-recent`、`gallery-all`、`collection`、`tag`、`trash` 七种浏览模式。当前内容以仓库 `D:\Python_projects\surveyPotrolSystem_main` 下的实现为准。
+本文档对应 `frontend/src/utils/commonBrowsePage.js` 的当前实现，描述 `BrowsePage/index.vue` 如何通过页面契约切换 `calendar`、`search-results`、`gallery-recent`、`gallery-all`、`collection`、`tag`、`trash` 七种浏览模式。当前内容以仓库 `D:\Python_projects\surveyPotrolSystem_main` 下的实现为准。
 
 ## 什么时候先看这份文档
 
-下列场景建议优先读本文件，而不是直接在 `BrowsePage.vue` 里逐段追逻辑：
+下列场景建议优先读本文件，而不是直接在 `BrowsePage/index.vue` 里逐段追逻辑：
 
 - 想新增一个新的二级浏览类型。
 - 想知道某个二级路由为什么会复用同一个页面实例。
@@ -24,10 +24,10 @@
 
 当前基线实现：
 
-- 页面壳：`frontend/src/pages/BrowsePage.vue`
+- 页面壳：`frontend/src/pages/BrowsePage/index.vue`
 - 契约实现：`frontend/src/utils/commonBrowsePage.js`
 - 详情浮层：`frontend/src/components/SelectionDetailOverlay.vue`
-- 三级菜单：`TagMenuDialog.vue`、`CollectionMenuDialog.vue`
+- 三级菜单：`frontend/src/pages/BrowsePage/components/TagMenuDialog.vue`、`frontend/src/pages/BrowsePage/components/CollectionMenuDialog.vue`
 
 ## 2. 导出 API
 
@@ -100,6 +100,11 @@
 | `buildHeaderActions(vm)` | 页头右侧动作 |
 | `buildSelectionActions(vm)` | 选择态按钮岛动作 |
 | `buildDetailPolicy(vm)` | 详情浮层的权限与主次动作 |
+| `buildCachePageToken(vm)` | 构建缓存任务使用的 page token |
+| `canPickContainerCover(vm)` | 是否允许当前契约进入封面选择模式 |
+| `actionBusyFallback(vm)` | 动作遮罩默认标题与文案 |
+| `getLoadErrorText(vm, err)` | loadItems 异常时展示给用户的错误文案 |
+| `shouldHydrateSelectionDetailMetadata(vm)` | 是否需要详情层补拉图片元数据 |
 | `loadItems(vm)` | 拉取原始数据包 |
 | `normalizeItems(rawItems)` | 把原始数据转成统一 item |
 | `afterLoad(vm)` | 页面拿到数据后的附加逻辑 |
@@ -107,6 +112,8 @@
 | `openItem(vm, item)` | 点击卡片主体时的行为 |
 | `openPrimary(vm, item)` | 详情浮层主动作 |
 | `runSecondaryAction(vm)` | 详情浮层次动作 |
+| `afterCollectionMenuApply(vm, selectedCollection, payload)` | 收藏菜单提交后的契约级后处理（可选） |
+| `afterTagSaved(vm, normalizedTag, savedTag)` | 标签保存后的契约级后处理（可选） |
 | `previewRepairPayloadKey` | 预览修复请求使用的字段名 |
 | `afterPreviewRepair(vm, repairIds)` | 预览修复后的收尾逻辑 |
 | `autoRepairMissingPreview` | 是否在主卡片缺预览时自动批量加入 targeted repair |
@@ -183,9 +190,9 @@
   - `triggerSilentRepair()` 静默对账
 - 返回逻辑优先 `router.back()`；如果浏览器历史不足，则回到 `/settings`。
 
-## 7. `BrowsePage.vue` 自己负责的状态
+## 7. 页面壳与 logic 模块负责的状态
 
-以下内容当前不属于契约，而由 `BrowsePage.vue` 自己维护：
+以下内容当前不属于契约，而由 `BrowsePage/index.vue` 组装、并由 `src/pages/BrowsePage/logic/*.js` 模块维护：
 
 - 排布模式与布局缓存
 - 统一筛选面板状态，以及基于完整数据集的前端本地过滤
@@ -204,7 +211,7 @@
 - `collection` 与 `tag` 复用了 `normalizeCalendarItem()`，因此它们和普通月页的图片条目字段保持一致。
 - `search-results` 复用了 `normalizeCalendarItem()` 的图片字段，但额外保留了搜索匹配元数据，并使用路由查询参数而不是路径参数驱动数据加载。
 - `trash` 使用独立的 `normalizeTrashItem()`，因为回收站的预览和主动作逻辑与普通浏览完全不同。
-- 所有 `BrowsePage.vue` 契约页都会在默认 header 右侧额外挂出统一的“筛选”按钮；它不是 contract 自定义动作，而是共享浏览壳自带能力。
+- 所有 `BrowsePage/index.vue` 契约页都会在默认 header 右侧额外挂出统一的“筛选”按钮；它不是 contract 自定义动作，而是共享浏览壳自带能力。
 - 当前筛选完全在前端本地完成，作用于每个契约加载到页面后的完整数据集；筛选状态只保留在当前页面实例内，不写回路由 query，也不落本地缓存。
 - 筛选维度固定为：标签、主分类、文件名、文件类型、导入时间、创建时间、文件大小。其中标签块永远排在最上方，并使用 Tag chip 展示当前视图中出现过的全部标签；description 通过悬停提示显示。
 - 标签筛选支持多选 OR；“无标签”与普通标签做并集；主分类按当前页面出现过的 category_id 多选；文件类型按当前视图图片项出现过的扩展名多选；时间与大小都支持只填单侧形成开区间。
