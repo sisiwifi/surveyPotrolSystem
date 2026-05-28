@@ -7,7 +7,7 @@ from ctypes import wintypes
 from pathlib import Path
 from typing import Optional
 
-from app.core.config import MEDIA_DIR, PROJECT_ROOT
+from app.core.config import MEDIA_DIR, resolve_user_scoped_path, to_user_scoped_relative
 from app.services.app_settings_service import get_month_cover_size_px
 from app.services.image_frame_service import extract_preview_frame_from_bytes, extract_preview_frame_from_path
 
@@ -27,19 +27,11 @@ def date_group_from_ts(ts_ms: Optional[int]) -> str:
 
 
 def to_project_relative(path: Path) -> str:
-    try:
-        return path.resolve().relative_to(PROJECT_ROOT.resolve()).as_posix()
-    except Exception:
-        return path.as_posix()
+    return to_user_scoped_relative(path)
 
 
 def resolve_stored_path(stored_path: Optional[str]) -> Optional[Path]:
-    if not stored_path:
-        return None
-    path = Path(stored_path)
-    if path.is_absolute():
-        return path
-    return (PROJECT_ROOT / path).resolve()
+    return resolve_user_scoped_path(stored_path)
 
 
 def quick_hash_from_bytes(content: bytes) -> str:

@@ -5,6 +5,7 @@
 import { normalizeAnimatedFields, resolveAnimatedBadgeLabel } from '../../../utils/animatedMedia'
 import {
   API_BASE,
+  buildProtectedAssetUrl,
   createBrowseFilterState,
   normalizeBrowseFilterState,
   hasBrowseFilterValue,
@@ -529,10 +530,10 @@ export default {
     resolvedUrl(item) {
       const previewPath = this.primaryPreviewPath(item)
       if (this.shouldUseOriginalPreviewFallback(item)) {
-        return `${API_BASE}${this.originalPreviewPath(item)}`
+        return buildProtectedAssetUrl(this.originalPreviewPath(item))
       }
       if (!previewPath || this.isPrimaryPreviewSuppressed(item)) return ''
-      return `${API_BASE}${previewPath}`
+      return buildProtectedAssetUrl(previewPath)
     },
 
     detailAspectRatio(item) {

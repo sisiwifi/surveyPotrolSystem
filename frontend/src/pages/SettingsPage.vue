@@ -217,6 +217,21 @@
         </div>
       </div>
 
+      <div v-if="canManageUsers" class="settings-card">
+        <h3 class="card-title">用户管理</h3>
+        <p class="card-desc">仅管理员可见。可新增用户、重置密码和删除用户；每个用户的数据与配置分别写入各自的用户名子目录。</p>
+
+        <div class="setting-row setting-row--compact">
+          <div class="setting-info">
+            <span class="setting-label">管理账号</span>
+            <span class="setting-desc">guest 和其它普通用户不会看到此入口，也无法访问对应接口。</span>
+          </div>
+          <button class="btn btn--secondary" type="button" @click="$router.push('/settings/users')">
+            打开用户管理
+          </button>
+        </div>
+      </div>
+
       <div class="settings-card">
         <h3 class="card-title">标签管理</h3>
         <p class="card-desc">统一处理标签字典导入导出，以及文件名匹配规则的后续配置入口。</p>
@@ -370,6 +385,7 @@
 </template>
 
 <script>
+import { authState } from '../utils/auth'
 import BreadcrumbHeader from '../components/BreadcrumbHeader.vue'
 import TagManagerPanel from '../components/TagManagerPanel.vue'
 import TopLevelPageHeader from './TopLevelPageHeader.vue'
@@ -403,6 +419,7 @@ export default {
 
   data() {
     return {
+      authState,
       clearingCache: false,
       cacheResult: null,
       thumbSettingLoading: false,
@@ -451,6 +468,10 @@ export default {
   },
 
   computed: {
+    canManageUsers() {
+      return this.authState.user?.role === 'admin'
+    },
+
     tagFilterCrumbs() {
       return [
         { label: '设置', title: '设置' },

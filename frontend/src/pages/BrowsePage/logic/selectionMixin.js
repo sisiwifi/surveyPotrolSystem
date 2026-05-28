@@ -4,6 +4,7 @@
  */
 import {
   API_BASE,
+  buildProtectedAssetUrl,
   LONG_PRESS_MS,
 } from './shared'
 
@@ -343,13 +344,13 @@ export default {
       const previewPath = this.primaryPreviewPath(item)
       if (!previewPath) return ''
       if (!this.isPrimaryPreviewSuppressed(item)) {
-        return `${API_BASE}${previewPath}`
+        return buildProtectedAssetUrl(previewPath)
       }
 
       const key = this.previewStateKey(item)
       const originalPath = this.originalPreviewPath(item)
       if (key && originalPath && this.detailOriginalFailureTokens[key] !== originalPath) {
-        return `${API_BASE}${originalPath}`
+        return buildProtectedAssetUrl(originalPath)
       }
       return ''
     },
@@ -375,7 +376,7 @@ export default {
       if (!item) return
 
       const originalPath = this.originalPreviewPath(item)
-      if (originalPath && preview?.previewUrl === `${API_BASE}${originalPath}`) {
+      if (originalPath && preview?.previewUrl === buildProtectedAssetUrl(originalPath)) {
         this.markDetailOriginalFailure(item)
         return
       }

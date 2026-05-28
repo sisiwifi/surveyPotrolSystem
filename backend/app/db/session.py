@@ -1,43 +1,113 @@
 import json
+from threading import RLock
 
-from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
+from sqlmodel import SQLModel, Session, create_engine
 
-from app.core.config import DB_PATH
+from app.core.config import SYSTEM_DB_PATH, ensure_user_storage_dirs, get_current_username, get_user_db_path
 
-engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+_system_engine = create_engine(f"sqlite:///{SYSTEM_DB_PATH}", echo=False)
+_user_engines: dict[str, Engine] = {}
+_system_db_initialized = False
+_user_db_initialized: set[str] = set()
+_engine_lock = RLock()
 
-_db_initialized = False
+
+def _load_business_models() -> tuple[type, ...]:
+    from app.models.album import Album
+    from app.models.album_image import AlbumImage
+    from app.models.category import Category
+    from app.models.collection import Collection
+    from app.models.collection_image import CollectionImage
+    from app.models.image_asset import ImageAsset
+    from app.models.photo_geo_link import PhotoGeoLink
+    from app.models.photo_location import PhotoLocation
+    from app.models.recent_import_operation import RecentImportOperation
+    from app.models.tag import Tag
+    from app.models.trash_entry import TrashEntry
+    from app.models.vector_dataset import VectorDataset
+    from app.models.vector_layer import VectorLayer
+
+    return (
+        Collection,
+        CollectionImage,
+        Album,
+        AlbumImage,
+        Category,
+        ImageAsset,
+        PhotoGeoLink,
+        PhotoLocation,
+        RecentImportOperation,
+        Tag,
+        TrashEntry,
+        VectorDataset,
+        VectorLayer,
+    )
 
 
 def init_db() -> None:
-    global _db_initialized
-    if _db_initialized:
+    init_system_db()
+
+
+def init_system_db() -> None:
+    global _system_db_initialized
+    if _system_db_initialized:
         return
-    # Import all models so SQLModel.metadata knows every table before create_all.
-    from app.models.collection import Collection  # noqa: F401
-    from app.models.collection_image import CollectionImage  # noqa: F401
-    from app.models.album import Album          # noqa: F401
-    from app.models.album_image import AlbumImage  # noqa: F401
-    from app.models.category import Category    # noqa: F401
-    from app.models.image_asset import ImageAsset  # noqa: F401
-    from app.models.photo_geo_link import PhotoGeoLink  # noqa: F401
-    from app.models.photo_location import PhotoLocation  # noqa: F401
-    from app.models.recent_import_operation import RecentImportOperation  # noqa: F401
-    from app.models.tag import Tag              # noqa: F401
-    from app.models.trash_entry import TrashEntry  # noqa: F401
-    from app.models.vector_dataset import VectorDataset  # noqa: F401
-    from app.models.vector_layer import VectorLayer  # noqa: F401
-    SQLModel.metadata.create_all(engine)
-    _migrate_db()
-    from app.services.category_service import backfill_category_ids_from_legacy, ensure_default_category_exists
 
-    ensure_default_category_exists()
-    backfill_category_ids_from_legacy()
-    _db_initialized = True
+    with _engine_lock:
+        if _system_db_initialized:
+            return
+        from app.models.user import User
+
+        User.__table__.create(bind=_system_engine, checkfirst=True)
+        _migrate_system_db()
+
+        with Session(_system_engine) as session:
+            from app.services.auth_service import ensure_seed_users
+
+            ensure_seed_users(session)
+            session.commit()
+
+        _system_db_initialized = True
 
 
-def _migrate_db() -> None:
+def _get_user_engine(username: str) -> Engine:
+    with _engine_lock:
+        engine = _user_engines.get(username)
+        if engine is not None:
+            return engine
+
+        ensure_user_storage_dirs(username)
+        engine = create_engine(f"sqlite:///{get_user_db_path(username)}", echo=False)
+        _user_engines[username] = engine
+        return engine
+
+
+def init_user_db(username: str) -> None:
+    init_system_db()
+    if username in _user_db_initialized:
+        return
+
+    with _engine_lock:
+        if username in _user_db_initialized:
+            return
+
+        engine = _get_user_engine(username)
+        business_models = _load_business_models()
+        SQLModel.metadata.create_all(engine, tables=[model.__table__ for model in business_models])
+        _migrate_business_db(engine)
+
+        with Session(engine) as session:
+            from app.services.category_service import ensure_default_category
+
+            ensure_default_category(session)
+            session.commit()
+
+        _user_db_initialized.add(username)
+
+
+def _migrate_business_db(engine: Engine) -> None:
     """Add new columns to existing tables if they don't exist yet.
 
     Only additive (ALTER TABLE ADD COLUMN) migrations are performed here.
@@ -363,5 +433,51 @@ def _migrate_db() -> None:
                 pass
 
 
-def get_session() -> Session:
-    return Session(engine)
+def _migrate_system_db() -> None:
+    with _system_engine.connect() as conn:
+        for column, col_type in [
+            ("display_name", "TEXT"),
+            ("password_salt", "TEXT"),
+            ("password_hash", "TEXT"),
+            ("role", "TEXT"),
+            ("is_active", "INTEGER"),
+            ("created_at", "DATETIME"),
+            ("updated_at", "DATETIME"),
+        ]:
+            try:
+                conn.execute(text(f"ALTER TABLE user_account ADD COLUMN {column} {col_type}"))
+                conn.commit()
+            except Exception:
+                pass
+
+        for index_sql in [
+            "CREATE UNIQUE INDEX IF NOT EXISTS ix_user_account_username ON user_account(username)",
+            "CREATE INDEX IF NOT EXISTS ix_user_account_role ON user_account(role)",
+            "CREATE INDEX IF NOT EXISTS ix_user_account_is_active ON user_account(is_active)",
+        ]:
+            try:
+                conn.execute(text(index_sql))
+                conn.commit()
+            except Exception:
+                pass
+
+
+def get_system_session() -> Session:
+    init_system_db()
+    return Session(_system_engine)
+
+
+def dispose_user_db(username: str) -> None:
+    with _engine_lock:
+        engine = _user_engines.pop(username, None)
+        _user_db_initialized.discard(username)
+    if engine is not None:
+        engine.dispose()
+
+
+def get_session(username: str | None = None) -> Session:
+    active_username = username or get_current_username(required=True)
+    if not active_username:
+        raise RuntimeError("当前请求未绑定用户上下文")
+    init_user_db(active_username)
+    return Session(_get_user_engine(active_username))

@@ -1,3 +1,5 @@
+import { buildProtectedAssetUrl } from '../utils/auth'
+
 export const API_BASE = 'http://127.0.0.1:8000'
 
 export const TOP_LEVEL_PAGE_STANDARD = Object.freeze({
@@ -337,15 +339,15 @@ export function formatMatchedByLabel(value) {
 
 export function resolvePreviewUrl(item) {
   if (!item) return ''
-  if (item.cache_thumb_url) return `${API_BASE}${item.cache_thumb_url}`
-  if (item.thumb_url) return `${API_BASE}${item.thumb_url}`
+  if (item.cache_thumb_url) return buildProtectedAssetUrl(item.cache_thumb_url)
+  if (item.thumb_url) return buildProtectedAssetUrl(item.thumb_url)
   return ''
 }
 
 export function buildOriginalMediaUrl(mediaRelPath) {
   if (!mediaRelPath) return ''
   const normalized = String(mediaRelPath).replace(/^\/+/, '')
-  return `${API_BASE}/${normalized}`
+  return buildProtectedAssetUrl(`/${normalized}`)
 }
 
 export function buildBrowseLocation(mediaRelPath, options = {}) {

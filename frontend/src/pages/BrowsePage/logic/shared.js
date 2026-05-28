@@ -2,6 +2,7 @@
  * BrowsePage 共享常量、筛选辅助方法与初始状态工厂。
  * 页面壳和各逻辑 mixin 都从这里拿统一状态定义，避免在 index.vue 中继续堆积细碎初始化代码。
  */
+import { buildProtectedAssetUrl } from '../../../utils/auth'
 import {
   DEFAULT_PAGE_CONFIG,
   PAGE_SIZE_OPTIONS,
@@ -9,6 +10,7 @@ import {
 } from '../../../utils/pageConfig'
 
 export { DEFAULT_PAGE_CONFIG }
+export { buildProtectedAssetUrl }
 
 export const API_BASE = 'http://127.0.0.1:8000'
 export const POLL_MS = 180

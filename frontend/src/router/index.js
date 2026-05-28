@@ -4,20 +4,29 @@
  * 新增页面时先在这里确认路径、name 和 meta，再同步更新 frontend/Frontend_README.md 中的路由速查说明。
  */
 import { createRouter, createWebHistory } from 'vue-router'
+import { authState, isAdmin, isAuthenticated, restoreAuthState } from '../utils/auth'
 import HomePage from '../pages/HomePage.vue'
 import GalleryPage from '../pages/GalleryPage.vue'
 import CalendarOverview from '../pages/CalendarOverview.vue'
 import BrowsePage from '../pages/BrowsePage/index.vue'
 import CategorySettingsPage from '../pages/CategorySettingsPage.vue'
+import LoginPage from '../pages/LoginPage.vue'
 import MapConfigPage from '../pages/MapConfigPage.vue'
 import SettingsPage from '../pages/SettingsPage.vue'
 import SearchPage from '../pages/SearchPage.vue'
 import FavoritesPage from '../pages/FavoritesPage.vue'
 import TagOverviewPage from '../pages/TagOverviewPage.vue'
+import UserManagementPage from '../pages/UserManagementPage.vue'
 import MapManagementPage from '../pages/MapManagementPage.vue'
 import VectorDataPage from '../pages/VectorDataPage.vue'
 
 const routes = [
+  {
+    path: '/login',
+    name: 'login',
+    component: LoginPage,
+    meta: { requiresAuth: false, hideSidebar: true, fullBleed: true }
+  },
   {
     path: '/',
     name: 'home',
@@ -136,6 +145,12 @@ const routes = [
     component: MapConfigPage
   },
   {
+    path: '/settings/users',
+    name: 'settings-users',
+    component: UserManagementPage,
+    meta: { requiresAdmin: true }
+  },
+  {
     path: '/trash',
     name: 'trash',
     component: BrowsePage,
@@ -146,6 +161,32 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+router.beforeEach((to) => {
+  restoreAuthState()
+
+  if (to.name === 'login' && isAuthenticated()) {
+    return typeof to.query?.redirect === 'string' && to.query.redirect.startsWith('/')
+      ? to.query.redirect
+      : '/'
+  }
+
+  const requiresAuth = to.meta?.requiresAuth !== false
+  if (requiresAuth && !isAuthenticated()) {
+    return {
+      name: 'login',
+      query: to.fullPath && to.fullPath !== '/login'
+        ? { redirect: to.fullPath }
+        : {},
+    }
+  }
+
+  if (to.meta?.requiresAdmin && !isAdmin()) {
+    return authState.user ? '/settings' : '/login'
+  }
+
+  return true
 })
 
 export default router

@@ -45,6 +45,7 @@
 <script>
 import ThumbCard from '../components/ThumbCard.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import { buildProtectedAssetUrl } from '../utils/auth'
 import { resolveAnimatedBadgeLabel } from '../utils/animatedMedia'
 import TopLevelPageHeader from './TopLevelPageHeader.vue'
 
@@ -80,15 +81,15 @@ export default {
     previewUrl(item) {
       if (!item) return ''
       const cached = this.cacheUrls[item.id]
-      if (cached) return `${API_BASE}${cached}`
-      if (item.cache_thumb_url) return `${API_BASE}${item.cache_thumb_url}`
-      if (item.thumb_url) return `${API_BASE}${item.thumb_url}`
+      if (cached) return buildProtectedAssetUrl(cached)
+      if (item.cache_thumb_url) return buildProtectedAssetUrl(item.cache_thumb_url)
+      if (item.thumb_url) return buildProtectedAssetUrl(item.thumb_url)
       return ''
     },
 
     originalPreviewUrl(item) {
       if (!item?.preview_original_url) return ''
-      return `${API_BASE}${item.preview_original_url}`
+      return buildProtectedAssetUrl(item.preview_original_url)
     },
 
     isOriginalFallbackReady(item) {

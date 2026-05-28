@@ -1,8 +1,6 @@
 import json
 
-from app.core.config import DATA_DIR
-
-APP_SETTINGS_FILE = DATA_DIR / "app_settings.json"
+from app.core.config import DATA_DIR, get_current_username, get_user_settings_path
 
 DEFAULT_CACHE_SHORT_SIDE_PX = 600
 MIN_CACHE_SHORT_SIDE_PX = 100
@@ -31,6 +29,13 @@ DEFAULT_MAP_CENTER = [35.8617, 104.1954]
 DEFAULT_MAP_ZOOM = 5
 MIN_MAP_ZOOM = 3
 MAX_MAP_ZOOM = 18
+
+
+def _settings_file_path():
+    username = get_current_username()
+    if username:
+        return get_user_settings_path(username)
+    return DATA_DIR / "app_settings.json"
 
 
 def _normalize_page_scroll_window_size(value: object) -> int:
@@ -77,17 +82,20 @@ def _normalize_map_zoom(value: object) -> int:
 
 
 def load_app_settings() -> dict:
-    if not APP_SETTINGS_FILE.exists():
+    settings_file = _settings_file_path()
+    if not settings_file.exists():
         return {}
     try:
-        return json.loads(APP_SETTINGS_FILE.read_text(encoding="utf-8"))
+        return json.loads(settings_file.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
 
 def save_app_settings(data: dict) -> None:
     try:
-        APP_SETTINGS_FILE.write_text(
+        settings_file = _settings_file_path()
+        settings_file.parent.mkdir(parents=True, exist_ok=True)
+        settings_file.write_text(
             json.dumps(data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )

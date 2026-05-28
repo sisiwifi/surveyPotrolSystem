@@ -26,6 +26,21 @@
       </router-link>
     </nav>
     <div class="sidebar__footer">
+      <div
+        v-if="authState.user"
+        class="sidebar__account"
+        :class="isTextVisible ? 'sidebar__account--visible' : 'sidebar__account--hidden'"
+      >
+        <span class="sidebar__account-name">{{ authState.user.username }}</span>
+        <span class="sidebar__account-role">{{ roleLabel }}</span>
+      </div>
+      <button class="sidebar__logout" type="button" @click="handleLogout">
+        <span>⎋</span>
+        <span
+          class="sidebar__nav-text"
+          :class="isTextVisible ? 'sidebar__nav-text--visible' : 'sidebar__nav-text--hidden'"
+        >退出登录</span>
+      </button>
       <button
         class="sidebar__toggle"
         @click="toggleSidebar"
@@ -39,20 +54,36 @@
 </template>
 
 <script>
+import { authState, logout } from '../utils/auth'
 import { TOP_LEVEL_NAV_ITEMS, isTopLevelRouteActive } from '../pages/topLevelPageConvention'
 
 export default {
   name: 'AppSidebar',
   data() {
     return {
+      authState,
       isSidebarCollapsed: false,
       isTextVisible: true,
-      navItems: TOP_LEVEL_NAV_ITEMS,
     }
+  },
+  computed: {
+    navItems() {
+      return TOP_LEVEL_NAV_ITEMS.filter(item => {
+        if (!item.requiredRole) return true
+        return this.authState.user?.role === item.requiredRole
+      })
+    },
+    roleLabel() {
+      return this.authState.user?.role === 'admin' ? '管理员' : '普通用户'
+    },
   },
   methods: {
     isActive(path) {
       return isTopLevelRouteActive(this.$route.path, path)
+    },
+    handleLogout() {
+      logout({ redirectToLogin: false })
+      this.$router.replace('/login')
     },
     toggleSidebar() {
       if (this.isSidebarCollapsed) {
@@ -130,7 +161,31 @@ export default {
 }
 
 .sidebar__footer {
-  @apply mt-auto p-4;
+  @apply mt-auto p-4 flex flex-col gap-3;
+}
+
+.sidebar__account {
+  @apply rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 transition-all duration-200 overflow-hidden;
+}
+
+.sidebar__account--visible {
+  @apply max-h-20 opacity-100;
+}
+
+.sidebar__account--hidden {
+  @apply max-h-0 opacity-0 p-0 border-transparent;
+}
+
+.sidebar__account-name {
+  @apply block text-sm font-semibold text-slate-900;
+}
+
+.sidebar__account-role {
+  @apply block text-xs text-slate-500 mt-1;
+}
+
+.sidebar__logout {
+  @apply flex h-10 w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 text-sm text-slate-600 hover:bg-slate-100;
 }
 
 .sidebar__toggle {

@@ -11,6 +11,8 @@ from fastapi import APIRouter
 
 from app.api.routers import (
     albums_router,
+    assets_router,
+    auth_router,
     basic_router,
     cache_router,
     collections_router,
@@ -23,9 +25,12 @@ from app.api.routers import (
     system_router,
     tags_router,
     trash_router,
+    users_router,
 )
 
 router = APIRouter()
+router.include_router(assets_router)
+router.include_router(auth_router)
 router.include_router(basic_router)
 router.include_router(categories_router)
 router.include_router(dates_router)
@@ -36,6 +41,7 @@ router.include_router(images_router)
 router.include_router(collections_router)
 router.include_router(search_router)
 router.include_router(system_router)
+router.include_router(users_router)
 router.include_router(cache_router)
 router.include_router(tags_router)
 router.include_router(trash_router)

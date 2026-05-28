@@ -18,6 +18,48 @@ class ImportResponse(BaseModel):
     skipped: List[str]
 
 
+class AuthUserResponse(BaseModel):
+    id: int
+    username: str
+    display_name: str = ""
+    role: str
+    is_active: bool = True
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: AuthUserResponse
+
+
+class UserItem(BaseModel):
+    id: int
+    username: str
+    display_name: str = ""
+    role: str
+    is_active: bool = True
+
+
+class UserListResponse(BaseModel):
+    items: List[UserItem] = Field(default_factory=list)
+
+
+class UserCreateRequest(BaseModel):
+    username: str
+    password: str
+    display_name: str = ""
+    role: str = "user"
+
+
+class UserPasswordResetRequest(BaseModel):
+    password: str
+
+
 class AnimationMeta(BaseModel):
     frame_count: int = 1
     format: Optional[str] = None

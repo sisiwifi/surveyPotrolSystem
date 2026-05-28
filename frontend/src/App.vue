@@ -1,11 +1,11 @@
 <template>
   <div class="h-screen overflow-x-clip overflow-y-hidden bg-slate-50 text-slate-900">
     <div class="flex h-screen">
-      <AppSidebar />
+      <AppSidebar v-if="showSidebar" />
       <main class="flex-1 min-w-0 overflow-y-auto">
         <div class="h-full min-h-full">
           <router-view v-slot="{ Component, route }">
-            <div :class="route.meta?.fullBleed ? 'h-full' : 'min-h-full p-10'">
+            <div :class="route.meta?.fullBleed || route.meta?.hideSidebar ? 'h-full' : 'min-h-full p-10'">
               <KeepAlive>
                 <component
                   v-if="route.meta?.keepAlive"
@@ -33,6 +33,11 @@ export default {
   components: {
     KeepAlive,
     AppSidebar
+  },
+  computed: {
+    showSidebar() {
+      return this.$route.meta?.hideSidebar !== true
+    },
   },
   created() {
     const saved = localStorage.getItem('theme')

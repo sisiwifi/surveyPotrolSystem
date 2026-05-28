@@ -8,6 +8,8 @@
 """
 
 from app.api.routers.albums import router as albums_router
+from app.api.routers.assets import router as assets_router
+from app.api.routers.auth import router as auth_router
 from app.api.routers.basic import router as basic_router
 from app.api.routers.cache import router as cache_router
 from app.api.routers.collections import router as collections_router
@@ -20,9 +22,12 @@ from app.api.routers.search import router as search_router
 from app.api.routers.system import router as system_router
 from app.api.routers.tags import router as tags_router
 from app.api.routers.trash import router as trash_router
+from app.api.routers.users import router as users_router
 
 __all__ = [
     "albums_router",
+    "assets_router",
+    "auth_router",
     "basic_router",
     "cache_router",
     "collections_router",
@@ -35,4 +40,5 @@ __all__ = [
     "system_router",
     "tags_router",
     "trash_router",
+    "users_router",
 ]

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Optional
 
-from app.core.config import CACHE_DIR, PROJECT_ROOT, TEMP_DIR
+from app.core.config import CACHE_DIR, TEMP_DIR, resolve_user_scoped_path
 from app.models.image_asset import ImageAsset
 
 
@@ -44,12 +44,7 @@ class AssetPreviewResolver:
 
 
 def resolve_stored_path(stored_path: Optional[str]) -> Optional[Path]:
-    if not stored_path:
-        return None
-    p = Path(stored_path)
-    if p.is_absolute():
-        return p
-    return (PROJECT_ROOT / p).resolve()
+    return resolve_user_scoped_path(stored_path)
 
 
 def _list_file_names(directory: Path) -> frozenset[str]:
