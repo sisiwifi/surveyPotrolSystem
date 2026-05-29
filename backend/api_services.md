@@ -8,17 +8,19 @@
 
 | 文件/分组 | 主要服务的前端页面 | 建议先看 |
 | --- | --- | --- |
+| `assets.py`、`auth.py`、`users.py` | `LoginPage.vue`、受保护媒体资源、用户管理页 | Bearer 鉴权、资源读取和用户生命周期 |
 | `basic.py`、`gallery.py`、`home.py` | `GalleryPage.vue`、`HomePage.vue` | 导入、overview、recent/all 聚合 |
 | `dates.py`、`albums.py`、`collections.py`、`trash.py` | `BrowsePage/index.vue` 各类二级契约 | 列表返回结构、详情动作 |
 | `images.py`、`search.py`、`tags.py` | `SearchPage.vue`、`TagOverviewPage.vue`、详情浮层菜单 | 元数据修改、搜索模式、Tag 生命周期 |
 | `system.py`、`cache.py`、`categories.py` | `SettingsPage.vue`、`MapConfigPage.vue`、预览缓存链路 | 配置项、任务轮询、主分类规则 |
+| `vector.py` | `VectorDataPage.vue`、`MapLibreMapFrame.vue` | CSV/SHP 导入、数据集列表、GeoJSON 输出 |
 | `common.py`、`schemas.py`、`routes.py` | 全部前端页面 | URL 归一化、字段契约、router 聚合顺序 |
 
 ## 1. 分层概览
 
 | 层级 | 位置 | 当前职责 |
 | --- | --- | --- |
-| 路由聚合 | `app/api/routes.py` | 注册 `basic`、`categories`、`dates`、`gallery`、`home`、`albums`、`images`、`collections`、`search`、`system`、`cache`、`tags`、`trash` |
+| 路由聚合 | `app/api/routes.py` | 注册 `assets`、`auth`、`basic`、`categories`、`dates`、`gallery`、`home`、`albums`、`images`、`collections`、`search`、`system`、`users`、`cache`、`tags`、`trash`、`vector` |
 | 路由实现 | `app/api/routers/*.py` | 解析请求、校验参数、组织响应、调用服务 |
 | 通用 API 工具 | `app/api/common.py` | 预览 URL 解析、路径归一化、`media_path` 选择、请求级缩略图可用性索引 |
 | 数据模型与 schema | `app/models/*.py`、`app/api/schemas.py` | 定义实体结构、请求体和响应模型 |
@@ -35,6 +37,18 @@
 | `basic.py` | `GET /api/images/count` | 返回库中 `ImageAsset` 总数 |
 | `home.py` | `GET /api/home/overview` | 返回主页所需的统计卡与标签墙分页数据：`visible_image_count` 按显示主分类过滤，`global_tag_count` 保持全局；标签墙按可见图片重新统计 Tag 使用量，并接受 `exclude_image_ids` 来尽量避开最近展示过的代表图 |
 | `basic.py` | `POST /api/admin/refresh` | 触发 `quick` 或 `full` 刷新；当 `mode=quick` 且请求体里 `repair_cache=true` 并带 `image_ids` 或 `trash_entry_ids` 时，会走 targeted-only 轻路径做定向预览修复，不再顺带执行全库维护 |
+
+### 2.1.1 鉴权与受保护资源
+
+| 文件 | 端点 | 当前行为 |
+| --- | --- | --- |
+| `auth.py` | `POST /api/auth/login` | 校验用户名密码，返回 Bearer token 与当前用户信息 |
+| `auth.py` | `GET /api/auth/me` | 校验当前 token 并返回用户信息；前端路由守卫依赖它确认会话是否仍有效 |
+| `auth.py` | `POST /api/auth/logout` | 当前只返回 `{"ok": true}`，令牌失效仍由前端清理本地状态 |
+| `assets.py` | `GET /media/{asset_path:path}` | 返回当前登录用户媒体目录下的原始文件 |
+| `assets.py` | `GET /cache/{asset_name:path}` | 返回当前登录用户缓存缩略图 |
+| `assets.py` | `GET /thumbnails/{asset_name:path}` | 返回当前登录用户 temp 缩略图 |
+| `assets.py` | `GET /trash-media/{asset_path:path}` | 返回当前登录用户回收站资源 |
 
 ### 2.2 图库管理聚合
 
@@ -110,10 +124,26 @@
 | `trash.py` | `POST /api/trash/hard-delete` | 彻底删除回收站条目 |
 | `trash.py` | `DELETE /api/trash` | 清空回收站 |
 
+### 2.6 用户与矢量数据
+
+| 文件 | 端点 | 当前行为 |
+| --- | --- | --- |
+| `users.py` | `GET /api/users` | 管理员读取用户列表 |
+| `users.py` | `POST /api/users` | 管理员创建用户；创建后自动补齐用户级目录 |
+| `users.py` | `POST /api/users/{username}/reset-password` | 管理员重置指定用户密码 |
+| `users.py` | `DELETE /api/users/{username}` | 管理员删除用户，并同步清理该用户的目录数据 |
+| `vector.py` | `GET /api/vectors/datasets` | 返回全部矢量数据集摘要，供矢量页与地图页共用 |
+| `vector.py` | `POST /api/vectors/import` | 接收 CSV、SHP 组件文件或单个 ZIP，解析并落库 |
+| `vector.py` | `GET /api/vectors/datasets/{public_id}` | 返回单个数据集详情 |
+| `vector.py` | `GET /api/vectors/datasets/{public_id}/geojson` | 返回 MapLibre 直接消费的 GeoJSON FeatureCollection |
+| `vector.py` | `PATCH /api/vectors/datasets/{public_id}/style` | 更新数据集与图层基础样式 |
+| `vector.py` | `DELETE /api/vectors/datasets/{public_id}` | 删除数据集、图层和全部要素 |
+
 ## 3. 关键服务模块
 
 | 模块 | 当前职责 |
 | --- | --- |
+| `services/auth_service.py` | 密码哈希、JWT 风格 token、种子用户与当前用户公开字段转换 |
 | `services/import_service.py` | 导入与刷新门面，兼容旧引用 |
 | `services/imports/pipeline.py` | 导入批处理、哈希去重、相册链创建、主分类写入、导入期自动打标 |
 | `services/imports/maintenance.py` | `quick/full` 刷新、路径对账、缺失预览修复、未入库图片收编 |
@@ -128,6 +158,7 @@
 | `services/tag_match_service.py` | 文件名分词、Tag 匹配、Tag 排序、`last_used_at` 与 `usage_count` 更新 |
 | `services/collection_service.py` | 收藏夹创建/查找、候选列表、增删图片、封面选择、统计刷新 |
 | `services/cover_service.py` | 相册/收藏手动封面 payload 读写 |
+| `services/vector_service.py` | CSV / SHP 解析、坐标系处理、矢量数据集写库、GeoJSON 输出与样式更新 |
 | `services/visible_album_service.py` | 依据当前可见图片推导相册可见性、封面与计数 |
 | `services/trash_service.py` | 回收站列表、移入、还原、硬删除、清空、对账 |
 | `services/viewer_service.py` | Windows 查看器枚举、图标提取、应用内默认查看器启动 |
@@ -303,3 +334,37 @@
   - `album_path`
 - 回收站恢复会复用导入/刷新链路重建数据库和相册统计。
 - `POST /api/trash/reconcile` 用于进入回收站后的轻量对账与预览修复，不替代完整刷新。
+
+### 4.10 登录态、地图配置与矢量协议
+
+- 当前前端统一使用 Bearer token：
+  - `POST /api/auth/login` 获取 token
+  - `GET /api/auth/me` 在进入受保护路由前确认 token 是否仍有效
+  - `/media`、`/cache`、`/thumbnails`、`/trash-media`、`/api/*` 都受同一套中间件保护
+- 默认种子账号：
+  - `admin / 123456`
+  - `guest / qwerty`
+- 地图配置通过 `GET/POST /api/system/map-config` 维护，前端保存：
+  - `tk`
+  - `default_center`
+  - `default_zoom`
+- `POST /api/vectors/import` 当前约定：
+  - 使用 `multipart/form-data`
+  - 字段名为 `files`
+  - 可选 `title`
+  - 支持单个 CSV、单个 ZIP，或同一次请求上传 SHP 组件文件集合
+- 当前业务 CSV 导入要求表头至少包含：
+  - `文件夹`
+  - `名称`
+  - `经度`
+  - `纬度`
+  - `海拔`
+  - `文本显示风格`
+  - `图标样式`
+  - `Comment`
+- CSV 解码当前已兼容 `utf-8-sig`、`utf-8`、`gb18030`、`gbk`。
+- SHP 导入当前要求：
+  - 必须存在 `.prj`
+  - 如环境已安装 `pyproj`，优先做完整投影转换
+  - 如未安装 `pyproj`，仅放行 WGS84 / CGCS2000 / Web Mercator 常见场景
+- GeoJSON 输出接口当前直接返回标准 `FeatureCollection`，供 MapLibre 以 URL source 方式加载。

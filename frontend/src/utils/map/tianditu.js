@@ -1,3 +1,7 @@
+/**
+ * 天地图运行时与底图模式共享工具。
+ * 当前同时服务 MapLibre 地图页与地图配置页，统一输出默认视图、图层模式和瓦片模板。
+ */
 const DEFAULT_CENTER_LNG = 104.1954
 const DEFAULT_CENTER_LAT = 35.8617
 const DEFAULT_ZOOM = 5
@@ -100,6 +104,10 @@ export function getTiandituLayerModes() {
 
 function buildTiandituDataServerUrl(tileCode, tk) {
   return `https://t{s}.tianditu.gov.cn/DataServer?T=${tileCode}&x={x}&y={y}&l={z}&tk=${encodeURIComponent(tk)}`
+}
+
+export function buildTiandituTileTemplate(tileCode, tk) {
+  return buildTiandituDataServerUrl(tileCode, tk)
 }
 
 function createTileLayer(L, tileCode, tk) {

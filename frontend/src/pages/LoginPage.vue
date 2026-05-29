@@ -2,9 +2,9 @@
   <section class="login-page">
     <div class="login-page__hero">
       <span class="login-page__eyebrow">surveyPotrolSystem</span>
-      <h1 class="login-page__title">登录后按用户进入各自的数据空间</h1>
+      <h1 class="login-page__title">登录后进入统一的巡检与矢量数据工作台</h1>
       <p class="login-page__subtitle">
-        账号、配置、媒体、缓存与回收站现在都按用户名隔离。开发阶段已预置 admin 与 guest 两个测试账号。
+        当前重构版后端已迁到统一主库，开发阶段已预置 admin 与 guest 两个测试账号，登录后即可测试地图管理、矢量导入与权限守卫。
       </p>
 
       <div class="login-page__accounts">

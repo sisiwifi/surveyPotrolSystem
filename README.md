@@ -1,6 +1,6 @@
 # picTagView
 
-picTagView 是一个本地图片管理系统，后端基于 FastAPI + SQLModel + SQLite，前端基于 Vue 3 + Vue CLI。项目支持图片导入、日期与相册浏览、标签管理、收藏夹、搜索、回收站、缩略图缓存和元数据编辑等本地图库工作流。
+picTagView 是一个本地图片与外业数据管理系统，后端基于 FastAPI + SQLModel + PostgreSQL，前端基于 Vue 3 + Vue CLI，并已切换到 MapLibre GL JS 作为地图主引擎。项目当前支持图片导入、日期与相册浏览、标签管理、收藏夹、搜索、回收站、缩略图缓存、统一鉴权，以及 SHP / CSV 矢量数据导入与地图展示。
 
 本文档重点说明：**如何在完全空的工程拉取后，从零开始安装依赖并启动整个项目**。
 
@@ -18,6 +18,14 @@ picTagView 是一个本地图片管理系统，后端基于 FastAPI + SQLModel +
 
 推荐的阅读顺序是：先看目标文件头注释，再看对应专题文档；这样通常不需要把整份说明书从头翻到尾。
 
+## 当前重构状态
+
+- 统一数据库已经从多 SQLite 切到单一 PostgreSQL 主库，默认库名为 `survey_potrol_system`。
+- 前端地图页已经从 Leaflet 切到 MapLibre，底图仍使用天地图配置，但矢量图层展示改走后端 GeoJSON 接口。
+- `/vectors` 页面已经可以直接导入业务 CSV 和 SHP 数据集，并在 `/maps` 页面联动查看。
+- 前端路由守卫已改为进入受保护页面前先调用 `/api/auth/me` 验证登录态。
+- 默认测试账号会在后端初始化时自动创建：`admin / 123456`、`guest / qwerty`。
+
 ## 1. 环境要求
 
 在开始之前，请先准备以下环境：
@@ -26,6 +34,7 @@ picTagView 是一个本地图片管理系统，后端基于 FastAPI + SQLModel +
 - Python 3.10 或更高版本
 - Node.js 16 或更高版本
 - npm（随 Node.js 一起安装）
+- PostgreSQL 16 或更高版本，且本机可启动 `postgres` 服务
 - Git
 
 建议使用 PowerShell 或命令提示符执行下面的命令。
@@ -65,6 +74,14 @@ python -m pip install --upgrade pip
 python -m pip install -r backend\requirements.txt
 ```
 
+后端依赖装完后，请确认本机 PostgreSQL 服务可用。当前默认连接参数如下，可通过环境变量覆盖：
+
+- `SURVEY_DB_HOST=127.0.0.1`
+- `SURVEY_DB_PORT=5432`
+- `SURVEY_DB_USER=postgres`
+- `SURVEY_DB_PASSWORD=postgres123`
+- `SURVEY_DB_NAME=survey_potrol_system`
+
 如果你的系统禁止执行 PowerShell 脚本，可以改用 cmd：
 
 ```bat
@@ -101,6 +118,13 @@ build\start_project.bat
 2. 检查后端是否能响应 `http://127.0.0.1:8000/`
 3. 在前端目录执行 `npm run serve`
 
+后端首次启动会自动完成以下动作：
+
+1. 连接 PostgreSQL 管理库并在缺失时创建 `survey_potrol_system`
+2. 创建全部业务表、用户表和矢量数据表
+3. 尝试启用 PostGIS 扩展；如果本机数据库未安装扩展，会自动回退为普通 JSON 几何存储
+4. 补齐种子账号与默认主分类
+
 ### 4.2 手动启动
 
 如果你希望手动分别启动，也可以打开两个终端窗口。
@@ -128,6 +152,11 @@ npm run serve
 
 如果一切正常，浏览器打开前端地址后就可以进入应用。
 
+默认测试账号：
+
+- 管理员：`admin / 123456`
+- 访客：`guest / qwerty`
+
 ## 6. 首次启动时会自动创建的目录
 
 后端启动时会自动创建运行所需目录，包括：
@@ -139,7 +168,7 @@ npm run serve
 - `media`
 - `trash`
 
-因此从空工程开始时，不需要手工提前创建这些目录。
+因此从空工程开始时，不需要手工提前创建这些目录。注意：当前业务主库已经不再存放在 `backend/data/*.db`，`backend/data` 主要保留运行时设置、缓存和兼容清理用的旧文件位置。
 
 ## 7. 常见问题
 
@@ -178,11 +207,11 @@ npm run serve
 surveyPotrolSystem_main/
 ├── backend/                # FastAPI 后端
 │   ├── app/                # API、模型、服务和配置
-│   ├── data/               # SQLite 数据、缓存和运行数据
+│   ├── data/               # 运行设置、缓存、查看器图标与兼容清理目录
 │   ├── temp/               # 临时缩略图与月份封面
 │   └── requirements.txt    # 后端依赖
 ├── frontend/               # Vue 前端
-│   ├── src/                # 页面、组件、路由和工具
+│   ├── src/                # 页面、组件、路由、MapLibre 地图与工具
 │   └── package.json        # 前端依赖与脚本
 ├── build/
 │   └── start_project.bat   # 一键启动脚本
@@ -214,6 +243,6 @@ build\start_project.bat
 - 后端入口文件是 `backend/app/main.py`
 - 前端开发服务由 Vue CLI 提供
 - 项目没有配置前端代理，前端默认直连 `http://127.0.0.1:8000`
-- 数据库和运行目录会在后端首次启动时自动初始化
+- PostgreSQL 数据库、种子账号和运行目录会在后端首次启动时自动初始化
 
 如果你只是想快速验证项目能跑起来，优先执行 `build\start_project.bat`。

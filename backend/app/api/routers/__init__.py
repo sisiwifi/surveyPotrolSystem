@@ -23,6 +23,7 @@ from app.api.routers.system import router as system_router
 from app.api.routers.tags import router as tags_router
 from app.api.routers.trash import router as trash_router
 from app.api.routers.users import router as users_router
+from app.api.routers.vector import router as vector_router
 
 __all__ = [
     "albums_router",
@@ -41,4 +42,5 @@ __all__ = [
     "tags_router",
     "trash_router",
     "users_router",
+    "vector_router",
 ]

@@ -26,6 +26,7 @@ from app.api.routers import (
     tags_router,
     trash_router,
     users_router,
+    vector_router,
 )
 
 router = APIRouter()
@@ -45,3 +46,4 @@ router.include_router(users_router)
 router.include_router(cache_router)
 router.include_router(tags_router)
 router.include_router(trash_router)
+router.include_router(vector_router)

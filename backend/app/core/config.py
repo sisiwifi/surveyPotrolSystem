@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import shutil
 from contextvars import ContextVar, Token
 from pathlib import Path
 from typing import Callable
+from urllib.parse import quote_plus
 
 
 class DynamicPath(os.PathLike):
@@ -41,6 +43,23 @@ TRASH_ROOT_DIR = PROJECT_ROOT / "trash"
 SYSTEM_DB_PATH = DATA_DIR / "system.db"
 LEGACY_DB_PATH = DATA_DIR / "app.db"
 
+DB_DRIVER = os.getenv("SURVEY_DB_DRIVER", "postgresql+psycopg")
+POSTGRES_HOST = os.getenv("SURVEY_DB_HOST", "127.0.0.1")
+POSTGRES_PORT = int(os.getenv("SURVEY_DB_PORT", "5432"))
+POSTGRES_USER = os.getenv("SURVEY_DB_USER", "postgres")
+POSTGRES_PASSWORD = os.getenv("SURVEY_DB_PASSWORD", "postgres123")
+POSTGRES_DB_NAME = os.getenv("SURVEY_DB_NAME", "survey_potrol_system")
+
+
+def build_postgres_dsn(database_name: str) -> str:
+	quoted_user = quote_plus(POSTGRES_USER)
+	quoted_password = quote_plus(POSTGRES_PASSWORD)
+	return f"{DB_DRIVER}://{quoted_user}:{quoted_password}@{POSTGRES_HOST}:{POSTGRES_PORT}/{database_name}"
+
+
+DATABASE_URL = os.getenv("DATABASE_URL", build_postgres_dsn(POSTGRES_DB_NAME))
+DATABASE_ADMIN_URL = os.getenv("DATABASE_ADMIN_URL", build_postgres_dsn("postgres"))
+
 for root_path in (
 	DATA_DIR,
 	TEMP_ROOT_DIR,
@@ -50,6 +69,27 @@ for root_path in (
 	TRASH_ROOT_DIR,
 ):
 	root_path.mkdir(parents=True, exist_ok=True)
+
+
+def clear_directory(path: Path) -> None:
+	if path.exists():
+		shutil.rmtree(path, ignore_errors=True)
+	path.mkdir(parents=True, exist_ok=True)
+
+
+def clear_legacy_runtime_data() -> None:
+	for db_path in (SYSTEM_DB_PATH, LEGACY_DB_PATH):
+		if db_path.exists():
+			db_path.unlink()
+
+	for root_path in (
+		USERS_DATA_DIR,
+		VIEWER_ICON_DIR,
+		MEDIA_ROOT_DIR,
+		TRASH_ROOT_DIR,
+		TEMP_ROOT_DIR,
+	):
+		clear_directory(root_path)
 
 _CURRENT_USERNAME: ContextVar[str | None] = ContextVar("current_username", default=None)
 _CURRENT_USER_ROLE: ContextVar[str | None] = ContextVar("current_user_role", default=None)

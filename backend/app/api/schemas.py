@@ -565,3 +565,52 @@ class TrashActionResult(BaseModel):
     deleted: int = 0
     skipped: List[str] = Field(default_factory=list)
     errors: List[str] = Field(default_factory=list)
+
+
+class VectorLayerSummary(BaseModel):
+    public_id: str
+    name: str
+    display_name: str = ""
+    geometry_type: Optional[str] = None
+    label_field: Optional[str] = None
+    feature_count: int = 0
+    is_visible: bool = True
+    sort_order: int = 0
+    style_config: dict = Field(default_factory=dict)
+
+
+class VectorDatasetSummary(BaseModel):
+    public_id: str
+    title: str
+    description: Optional[str] = None
+    format: str = "unknown"
+    source_filename: Optional[str] = None
+    import_status: str = "pending"
+    import_error: Optional[str] = None
+    source_crs: Optional[str] = None
+    target_crs: str = "EPSG:4326"
+    geometry_type: Optional[str] = None
+    parsed_feature_count: int = 0
+    owner_username: Optional[str] = None
+    extent: dict = Field(default_factory=dict)
+    style_config: dict = Field(default_factory=dict)
+    metadata: dict = Field(default_factory=dict)
+    layers: List[VectorLayerSummary] = Field(default_factory=list)
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class VectorDatasetListResponse(BaseModel):
+    items: List[VectorDatasetSummary] = Field(default_factory=list)
+
+
+class VectorImportResponse(BaseModel):
+    dataset: VectorDatasetSummary
+
+
+class VectorStyleUpdateRequest(BaseModel):
+    style_config: dict = Field(default_factory=dict)
+
+
+class VectorDeleteResponse(BaseModel):
+    deleted: int = 0

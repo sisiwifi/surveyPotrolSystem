@@ -24,6 +24,7 @@
 - 项目目录：`D:\Python_projects\surveyPotrolSystem_main\frontend`
 - 框架：Vue 3
 - 路由：Vue Router 4
+- 地图引擎：MapLibre GL JS
 - 样式：Tailwind CSS
 - 构建：Vue CLI 5
 - 网络：原生 `fetch`
@@ -60,10 +61,13 @@ frontend/
 
 | 路由 | 组件 | 说明 |
 | --- | --- | --- |
+| `/login` | `LoginPage.vue` | 登录页；进入其他受保护路由前会先走远端登录态校验 |
 | `/` | `HomePage.vue` | 主页仪表板：精确统计卡 + 连续滚动的可见 Tag 墙 |
 | `/search` | `SearchPage.vue` | 单输入搜索、本地文件搜图、时间范围过滤与一级虚拟化预览 |
 | `/search/results` | `BrowsePage/index.vue` | 完整搜索结果二级浏览，`browseContract = 'search-results'`，支持复用 `q` 与 `quick_hash` |
 | `/tags` | `TagOverviewPage.vue` | 标签总览与编辑入口，页头固定在主滚动区顶部 |
+| `/maps` | `MapManagementPage.vue` | MapLibre 全屏地图页，加载天地图底图和后端矢量 GeoJSON 图层 |
+| `/vectors` | `VectorDataPage.vue` | 矢量数据一级页，导入 CSV / SHP、删除数据集并编辑基础样式 |
 | `/tags/:tagId` | `BrowsePage/index.vue` | 标签二级浏览，`browseContract = 'tag'` |
 | `/gallery` | `GalleryPage.vue` | 图库管理父页，包含导入、刷新、最近导入预览、图库总览预览，`meta.keepAlive = true` |
 | `/gallery/recent` | `BrowsePage/index.vue` | 最近导入二级浏览，`browseContract = 'gallery-recent'` |
@@ -77,6 +81,8 @@ frontend/
 | `/favorites/:collectionId` | `BrowsePage/index.vue` | 收藏夹二级浏览，`browseContract = 'collection'` |
 | `/settings` | `SettingsPage.vue` | 设置页 |
 | `/settings/categories` | `CategorySettingsPage.vue` | 主分类配置 |
+| `/settings/map-config` | `MapConfigPage.vue` | 天地图 Key 与默认视图配置页 |
+| `/settings/users` | `UserManagementPage.vue` | 用户管理页，仅管理员可见 |
 | `/trash` | `BrowsePage/index.vue` | 回收站浏览，`browseContract = 'trash'` |
 
 说明：
@@ -173,6 +179,24 @@ frontend/
   - `activePanel = 'tag-filter'`：保留的占位子面板，入口按钮当前仍被注释，不会在用户界面里显示
 - 注意：后端已有 `/api/system/tag-match-setting`，但设置页目前没有实际 UI 去编辑它。
 
+### 4.5.1 `MapManagementPage.vue` 与 `VectorDataPage.vue`
+
+- `/maps` 已经切换到 `src/components/map/MapLibreMapFrame.vue`，不再使用原来的 Leaflet 地图容器。
+- `MapLibreMapFrame.vue` 当前直接完成三类职责：
+  - 从 `/api/system/map-config` 读取天地图 Key、默认中心点和缩放级别
+  - 通过 `src/utils/map/tianditu.js` 统一生成底图模式和瓦片 URL 模板
+  - 通过 `src/utils/vectorApi.js` 拉取 `/api/vectors/datasets` 和 `/api/vectors/datasets/{public_id}/geojson`
+- 左侧面板已经支持：
+  - 三种底图模式切换
+  - 业务图层显隐
+  - 缩放到指定数据集范围
+- `/vectors` 当前已从占位页改成真实数据管理页：
+  - 支持导入业务 CSV、SHP 组件文件，或包含单个 SHP 数据集的 ZIP 包
+  - 支持删除数据集
+  - 支持修改点 / 线 / 面的基础样式并回写到后端
+  - 点击“地图查看”会跳到 `/maps?focus=<public_id>`，地图页会自动定位到该数据集
+- 当前地图页仍沿用天地图作为底图来源，因此首次进入前仍需要先在 `/settings/map-config` 中配置 Key。
+
 ### 4.6 `BrowsePage/index.vue`
 
 - 是当前最核心的共享浏览壳。
@@ -256,7 +280,7 @@ frontend/
 
 ### 7.1 API 地址
 
-当前前端并没有通过代理访问后端，而是多处直接写死：
+当前前端并没有通过代理访问后端，而是通过多个共享工具常量直接访问：
 
 ```js
 const API_BASE = 'http://127.0.0.1:8000'
@@ -264,6 +288,8 @@ const API_BASE = 'http://127.0.0.1:8000'
 
 这类常量目前出现在：
 
+- `src/utils/auth.js`
+- `src/utils/vectorApi.js`
 - `src/pages/topLevelPageConvention.js`
 - `src/utils/commonBrowsePage.js`
 - `src/utils/pageConfig.js`
@@ -276,19 +302,23 @@ const API_BASE = 'http://127.0.0.1:8000'
 
 其中 `HomePage.vue` 已改为复用 `topLevelPageConvention.js` 暴露的共享 `API_BASE`，不再单独维护一份常量。
 
-## 8. 地图页接入天地图的准备
+## 8. 地图与矢量集成状态
 
-地图页当前的入口已经预留在 `/maps`，对应的框架文件是 `src/pages/MapManagementPage.vue` 和 `src/components/map/TianDiTuMapFrame.vue`。
+地图与矢量页当前已经形成最小可测试闭环：
 
-如果你准备接入天地图，前端侧至少先准备这些信息：
+- 地图页入口：`src/pages/MapManagementPage.vue`
+- 地图主容器：`src/components/map/MapLibreMapFrame.vue`
+- 矢量数据页：`src/pages/VectorDataPage.vue`
+- 地图配置：`src/pages/MapConfigPage.vue`
+- 前端矢量 API 封装：`src/utils/vectorApi.js`
 
-- 天地图网页服务 TK，前端会通过 `VUE_APP_TIANDITU_TK` 读取
-- 允许访问的域名白名单，开发时可以先放本地开发域名，生产环境再换成正式站点
-- 默认地图中心点和缩放级别，当前框架提供了 `VUE_APP_TIANDITU_CENTER_LAT`、`VUE_APP_TIANDITU_CENTER_LNG` 和 `VUE_APP_TIANDITU_ZOOM`
-- 点位数据结构，至少要保留经纬度、业务 id、图层类型和可见状态
-- 坐标系策略，尤其是照片 EXIF 坐标、业务点位坐标和后端持久化坐标要统一
+当前约定如下：
 
-当前框架已经预留了三种底图切换：矢量、影像、地形。你后续可以直接在地图页里继续接照片点位、矢量图层、框选和筛选逻辑，不需要重新搭底图容器。
+- 底图仍来自天地图，MapLibre 只负责渲染容器、图层管理和交互。
+- 地图配置优先走 `/api/system/map-config`，本地缓存通过 `src/utils/mapConfig.js` 维护。
+- 矢量图层一律通过后端 `/api/vectors/*` 读取，不在前端直接解析 CSV 或 SHP。
+- 当前已验证的导入链路是“业务 CSV -> 后端 vectors API -> PostgreSQL -> `/geojson` -> MapLibre 图层展示”。
+- CSV 导入已经兼容 UTF-8 与 GB18030 / GBK 中文编码文件。
 
 ### 7.2 页面配置
 

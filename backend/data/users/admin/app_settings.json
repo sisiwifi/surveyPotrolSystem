@@ -1,15 +1,10 @@
 {
-  "page_config": {
-    "browse_mode": "paged",
-    "scroll_window_size": 100,
-    "page_size": 60
-  },
   "map_config": {
     "tk": "d883abbea76ac52b242bbe510cd0b315",
     "default_center": [
-      35.8617,
-      104.1954
+      30.09407,
+      115.98037
     ],
-    "default_zoom": 5
+    "default_zoom": 12
   }
 }

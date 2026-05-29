@@ -26,7 +26,8 @@
 
 - Web 框架：FastAPI
 - ORM：SQLModel / SQLAlchemy
-- 数据库：SQLite
+- 数据库：PostgreSQL（统一主库，启动时自动建库）
+- 空间扩展：PostGIS（可选；存在则自动启用，不存在时回退为 JSON 几何存储）
 - 多媒体处理：OpenCV、numpy
 - 开发服务器：Uvicorn
 - 上传解析：python-multipart
@@ -34,7 +35,7 @@
 
 ### 2.2 路径来源
 
-`app/core/config.py` 当前没有环境变量分支，而是直接按仓库结构计算路径：
+`app/core/config.py` 当前同时负责仓库路径解析与 PostgreSQL 连接参数：
 
 | 常量 | 当前值 |
 | --- | --- |
@@ -46,9 +47,11 @@
 | `VIEWER_ICON_DIR` | `backend/data/viewer_icons` |
 | `MEDIA_DIR` | `media` |
 | `TRASH_DIR` | `trash` |
-| `DB_PATH` | `backend/data/app.db` |
+| `DATABASE_URL` | 默认指向 `postgresql+psycopg://postgres:postgres123@127.0.0.1:5432/survey_potrol_system` |
+| `DATABASE_ADMIN_URL` | 默认指向 `postgresql+psycopg://postgres:postgres123@127.0.0.1:5432/postgres` |
+| `SYSTEM_DB_PATH` / `LEGACY_DB_PATH` | 仅用于兼容清理旧 SQLite 文件 |
 
-模块导入时会自动确保这些目录存在。
+模块导入时会自动确保这些目录存在；数据库连接参数则支持通过 `SURVEY_DB_*` 或 `DATABASE_URL` 覆盖。
 
 ## 3. 应用启动流程
 
@@ -57,34 +60,39 @@
 1. 调用 `init_db()` 初始化数据库
 2. 创建 `FastAPI(title="picTagView Backend", version="0.1.0")`
 3. 配置全开放 CORS
-4. 挂载静态目录：
-   - `/thumbnails` -> `TEMP_DIR`
-   - `/cache` -> `CACHE_DIR`
-   - `/media` -> `MEDIA_DIR`
-   - `/trash-media` -> `TRASH_DIR`
-   - `/viewer-icons` -> `VIEWER_ICON_DIR`
-5. 注册 `app/api/routes.py` 聚合出的全部 API 路由
+4. 挂载 `/viewer-icons` 静态目录
+5. 注册鉴权中间件：
+  - `/api/auth/login`、`/openapi.json`、`/docs`、`/redoc`、`/viewer-icons/*` 放行
+  - 其余 `/api`、`/media`、`/cache`、`/thumbnails`、`/trash-media` 请求统一要求 token
+  - 中间件会把当前用户写入请求上下文，并同步设置当前用户名 context
+6. 注册 `app/api/routes.py` 聚合出的全部 API 路由
 
 ## 4. 路由结构
 
 `app/api/routes.py` 当前注册的 router 顺序如下：
 
-1. `basic_router`
-2. `categories_router`
-3. `dates_router`
-4. `gallery_router`
-5. `home_router`
-6. `albums_router`
-7. `images_router`
-8. `collections_router`
-9. `search_router`
-10. `system_router`
-11. `cache_router`
-12. `tags_router`
-13. `trash_router`
+1. `assets_router`
+2. `auth_router`
+3. `basic_router`
+4. `categories_router`
+5. `dates_router`
+6. `gallery_router`
+7. `home_router`
+8. `albums_router`
+9. `images_router`
+10. `collections_router`
+11. `search_router`
+12. `system_router`
+13. `users_router`
+14. `cache_router`
+15. `tags_router`
+16. `trash_router`
+17. `vector_router`
 
 这意味着当前后端已经包含：
 
+- 登录鉴权与用户管理
+- 受保护媒体资源访问
 - 导入与刷新
 - 日期与相册浏览
 - 图片元数据编辑
@@ -95,6 +103,7 @@
 - 缓存缩略图队列
 - 主分类管理
 - 回收站管理
+- 矢量数据导入、GeoJSON 输出与地图配置
 
 ## 5. 核心子系统
 
@@ -116,6 +125,18 @@
 - 同批次导入会在一个事务内完成写库、关联和自动打标
 - 前端一次导入会被拆成多个上传批次；后端通过 `RecentImportOperation` 快照与 `recent_import_mode = replace/append` 把这些批次重新聚合成一次“最近导入操作”，并在 `successful_image_ids` 中保存整批成功导入图片全集；recent 一级页优先读取这一字段，旧的 `preview_image_ids` 仅保留兼容用途。
 - 多帧图片不会再把原始动图直接交给缩略图链路处理，而是统一提取首帧，写入 `ImageAsset.is_animated + animation_meta`；其中 `animation_meta` 只在动图时保存 `frame_count / format`，供 overview、BrowsePage 和详情浮层显示状态标记。
+
+### 5.1.1 统一数据库与初始化
+
+- `db/session.py` 负责把原来的多 SQLite 结构收束为单一 PostgreSQL 主库。
+- 启动时会自动：
+  - 连接 `DATABASE_ADMIN_URL`
+  - 在缺失时创建目标数据库
+  - 加载全部模型并建表
+  - 尝试执行 `CREATE EXTENSION IF NOT EXISTS postgis`
+  - 补齐种子用户和默认主分类
+- `get_system_session()` 与 `get_session()` 仍保留旧调用习惯，以减少服务层连锁改动。
+- `reset_application_state()` 会清空主库、兼容删除旧 SQLite 文件，并重建用户目录、缓存目录与种子数据。
 
 ### 5.1.1 图库管理聚合
 
@@ -156,6 +177,19 @@
 - 搜索响应当前同时服务 `SearchPage.vue` 一级虚拟化预览和 `/search/results` 完整列表，返回体包含 `requested_mode`、`resolved_mode`、`included_tags`、`matched_by`、`matched_tags` 等前端渲染所需元数据；前端顶层页提供“按图搜索”和“时间范围”两个辅助入口来生成对应查询。
 - 搜索 UI 的主预览现在优先使用 temp/cache 缩略图，不再拿原图作为主卡片兜底；当搜索结果缺失缩略图时，前端会复用现有 `POST /api/admin/refresh?mode=quick` + `/api/images/meta` 的 targeted repair 链路，后台异步生成并回填预览元数据。
 - `POST /api/admin/refresh` 在 targeted preview repair 场景下已经做了轻路径分流：当 `mode=quick` 且请求体带 `repair_cache=true` 和 `image_ids` / `trash_entry_ids` 时，后端会直接修复指定条目的缩略图与缓存引用，不再先执行全库路径对账、缓存目录清理、月份代表图补缩略图、hash index 全量重建或相册计数重算。
+
+### 5.3.1 登录态与用户管理
+
+- `auth_service.py` 负责：
+  - 用户名规范化
+  - PBKDF2 密码哈希
+  - Bearer token 生成与校验
+  - 种子账号补齐
+- 默认会创建两个用户：
+  - `admin / 123456`
+  - `guest / qwerty`
+- `users.py` 负责管理员用户管理；删除用户时会同步清理该用户的目录资源。
+- `assets.py` 不再依赖静态目录挂载，而是按“当前登录用户 + 相对路径”动态解析资源文件。
 
 ### 5.4 收藏夹与封面
 
@@ -203,11 +237,28 @@
   - 月份封面尺寸
   - 固定分页配置：默认每页 `20`，可选 `20/40/60/100/200`；同时保留缓存窗口兼容参数供预取逻辑使用
   - 文件名自动打标设置（`enabled`、`noise_tokens`、`min_token_length`、`drop_numeric_only`，返回体额外带固定 `sort_mode = name_asc`）
+  - 地图配置（`tk`、`default_center`、`default_zoom`）
+
+### 5.9 矢量数据子系统
+
+- `vector_service.py` 当前承担：
+  - 业务 CSV 点位文件解析
+  - SHP / ZIP 导入
+  - `.prj` 坐标系读取与投影转换
+  - 数据集、图层、要素三层模型写库
+  - GeoJSON FeatureCollection 输出
+  - 样式更新与删除
+- 当前 CSV 导入已兼容 UTF-8 与 GB18030 / GBK 编码文件。
+- 当前 SHP 导入要求显式 `.prj`；若未安装 `pyproj`，仅放行常见地理坐标系与 Web Mercator 场景。
+- 数据库存储当前优先保证可落地：
+  - PostGIS 可用时尝试启用扩展
+  - 几何要素仍以 JSON + bbox 字段为主，避免在当前 Windows / Python 3.14 环境下引入更重的空间依赖
 
 ## 6. 数据模型摘要
 
 | 模型 | 当前角色 |
 | --- | --- |
+| `User` | 登录用户、角色和密码哈希记录 |
 | `ImageAsset` | 图片主表，保存哈希、宽高、`media_path`、`tags`、`category_id`、时间、缩略图信息与 `is_animated + animation_meta`；`animation_meta` 只在动图时保存 `frame_count / format` |
 | `Album` | 相册树节点，保存路径、标题、封面和统计 |
 | `AlbumImage` | 相册与图片关系表 |
@@ -217,6 +268,9 @@
 | `Collection` | 收藏夹 |
 | `CollectionImage` | 收藏夹与图片关系表 |
 | `TrashEntry` | 回收站条目与恢复所需 payload |
+| `VectorDataset` | 矢量数据集主表，保存来源、范围、样式、格式和元数据 |
+| `VectorLayer` | 数据集下的图层元数据与显示样式 |
+| `VectorFeature` | 实际几何要素、属性 JSON 与 bbox |
 
 ## 7. 开发与运行
 
@@ -245,7 +299,8 @@ python -m venv ..\.venv
 ## 8. 当前约定与注意事项
 
 - 前端默认直连 `http://127.0.0.1:8000`，后端端口变化时需要同步更新前端代码。
-- `backend/data/app.db` 是当前默认数据库文件，仓库运行期间会持续变化。
+- 当前默认主库是 PostgreSQL `survey_potrol_system`；`backend/data/*.db` 只保留兼容清理用途。
 - 图片元数据编辑里的“多选不能改文件名”不是只靠前端收敛交互，而是 `/api/images/metadata` 的后端硬校验；多选请求如果同时带 `name` 会直接返回 `400`。
 - 文件名自动打标配置 API 已存在，但前端设置页尚未接入对应 UI；设置页内部虽然保留了 `Tag过滤` 占位子面板结构，但入口按钮当前未开放。
 - 草稿 Tag 属于正常数据库记录，只是通过 `created_by` 被隐藏；调试数据库时要注意区分。
+- 当前地图矢量链路已经按“CSV/SHP -> PostgreSQL -> `/api/vectors/*` -> MapLibre”跑通；其中 CSV 编码已验证 `GB18030` 中文表头场景。

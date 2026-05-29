@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
 
-const API_BASE = 'http://127.0.0.1:8000'
+export const API_BASE = 'http://127.0.0.1:8000'
 const STORAGE_KEY = 'survey-potrol-auth-v1'
 const fetchHost = typeof window !== 'undefined'
   ? window
@@ -10,6 +10,8 @@ const nativeFetch = fetchHost && typeof fetchHost.fetch === 'function'
   : null
 
 let fetchInterceptorInstalled = false
+let validatedToken = ''
+let validationPromise = null
 
 export const authState = reactive({
   token: '',
@@ -61,6 +63,7 @@ export function setAuthSession(token, user) {
   authState.token = String(token || '')
   authState.user = user && typeof user === 'object' ? user : null
   authState.ready = true
+  validatedToken = authState.token
   persistAuthState()
 }
 
@@ -68,6 +71,7 @@ export function clearAuthSession() {
   authState.token = ''
   authState.user = null
   authState.ready = true
+  validatedToken = ''
   clearPersistedAuthState()
 }
 
@@ -79,6 +83,53 @@ export function isAuthenticated() {
 export function isAdmin() {
   restoreAuthState()
   return authState.user?.role === 'admin'
+}
+
+export async function validateAuthSession() {
+  restoreAuthState()
+
+  if (!authState.token || !authState.user?.username) {
+    clearAuthSession()
+    return false
+  }
+
+  if (validatedToken === authState.token) {
+    return true
+  }
+
+  if (validationPromise) {
+    return validationPromise
+  }
+
+  const sessionToken = authState.token
+  validationPromise = nativeFetch(`${API_BASE}/api/auth/me`, {
+    headers: {
+      Authorization: `Bearer ${sessionToken}`,
+    },
+  })
+    .then(async response => {
+      if (!response.ok) {
+        return false
+      }
+
+      const payload = await response.json().catch(() => null)
+      if (payload && typeof payload === 'object') {
+        authState.user = payload
+        persistAuthState()
+      }
+      validatedToken = sessionToken
+      return true
+    })
+    .catch(() => false)
+    .finally(() => {
+      validationPromise = null
+    })
+
+  const isValid = await validationPromise
+  if (!isValid && authState.token === sessionToken) {
+    clearAuthSession()
+  }
+  return isValid
 }
 
 export async function login(username, password) {

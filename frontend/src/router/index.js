@@ -4,7 +4,7 @@
  * 新增页面时先在这里确认路径、name 和 meta，再同步更新 frontend/Frontend_README.md 中的路由速查说明。
  */
 import { createRouter, createWebHistory } from 'vue-router'
-import { authState, isAdmin, isAuthenticated, restoreAuthState } from '../utils/auth'
+import { authState, isAdmin, restoreAuthState, validateAuthSession } from '../utils/auth'
 import HomePage from '../pages/HomePage.vue'
 import GalleryPage from '../pages/GalleryPage.vue'
 import CalendarOverview from '../pages/CalendarOverview.vue'
@@ -163,17 +163,21 @@ const router = createRouter({
   routes
 })
 
-router.beforeEach((to) => {
+router.beforeEach(async (to) => {
   restoreAuthState()
 
-  if (to.name === 'login' && isAuthenticated()) {
+  if (to.name === 'login') {
+    const hasValidSession = await validateAuthSession()
+    if (!hasValidSession) {
+      return true
+    }
     return typeof to.query?.redirect === 'string' && to.query.redirect.startsWith('/')
       ? to.query.redirect
       : '/'
   }
 
   const requiresAuth = to.meta?.requiresAuth !== false
-  if (requiresAuth && !isAuthenticated()) {
+  if (requiresAuth && !(await validateAuthSession())) {
     return {
       name: 'login',
       query: to.fullPath && to.fullPath !== '/login'
