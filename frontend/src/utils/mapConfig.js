@@ -1,4 +1,5 @@
-const API_BASE = 'http://127.0.0.1:8000'
+import { API_BASE } from './apiBase'
+
 const STORAGE_KEY = 'ptv.mapConfig'
 
 export const MAP_CONFIG_UPDATED_EVENT = 'ptv:map-config-updated'

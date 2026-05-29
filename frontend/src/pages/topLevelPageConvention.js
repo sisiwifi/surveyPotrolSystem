@@ -1,6 +1,7 @@
 import { buildProtectedAssetUrl } from '../utils/auth'
+import { API_BASE } from '../utils/apiBase'
 
-export const API_BASE = 'http://127.0.0.1:8000'
+export { API_BASE }
 
 export const TOP_LEVEL_PAGE_STANDARD = Object.freeze({
   thumbEdgePx: 400,

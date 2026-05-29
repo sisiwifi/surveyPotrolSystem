@@ -117,9 +117,8 @@
 import BreadcrumbHeader from '../components/BreadcrumbHeader.vue'
 import ConfirmationDialog from '../components/ConfirmationDialog.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
+import { API_BASE } from '../utils/apiBase'
 import { authState } from '../utils/auth'
-
-const API_BASE = 'http://127.0.0.1:8000'
 
 function createDialogState() {
   return {

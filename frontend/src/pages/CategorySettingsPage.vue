@@ -162,8 +162,8 @@ import CategoryFormDialog from '../components/CategoryFormDialog.vue'
 import ConfirmationDialog from '../components/ConfirmationDialog.vue'
 import LoadingSpinner from '../components/LoadingSpinner.vue'
 import SelectionIsland from '../components/SelectionIsland.vue'
+import { API_BASE } from '../utils/apiBase'
 
-const API_BASE = 'http://127.0.0.1:8000'
 const DEFAULT_CATEGORY_ID = 1
 
 function createDialogState() {

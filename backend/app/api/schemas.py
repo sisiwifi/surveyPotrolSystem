@@ -264,6 +264,45 @@ class MapConfigResponse(BaseModel):
     default_zoom: int = 5
 
 
+class RuntimeConfigRequest(BaseModel):
+    backend_host: str = "127.0.0.1"
+    backend_port: int = 8000
+    embedded_postgres_enabled: bool = True
+    postgres_host: str = "127.0.0.1"
+    postgres_port: int = 5432
+    postgres_user: str = "postgres"
+    postgres_password: str = "postgres123"
+    postgres_db_name: str = "survey_potrol_system"
+    postgres_admin_db_name: str = "postgres"
+    postgres_runtime_dir: str = "runtime/postgresql"
+    postgres_bin_dir: str = "runtime/postgresql/bin"
+    postgres_cluster_dir: str = "data/postgresql/cluster"
+    postgres_log_file: str = "data/postgresql/log/postgresql.log"
+
+
+class RuntimeConfigResponse(BaseModel):
+    config_path: str
+    backend_host: str
+    backend_port: int
+    embedded_postgres_enabled: bool
+    postgres_driver: str
+    postgres_host: str
+    postgres_port: int
+    postgres_user: str
+    postgres_password: str
+    postgres_db_name: str
+    postgres_admin_db_name: str
+    postgres_runtime_dir: str
+    postgres_bin_dir: str
+    postgres_cluster_dir: str
+    postgres_log_file: str
+    resolved_postgres_runtime_dir: str
+    resolved_postgres_bin_dir: str
+    resolved_postgres_cluster_dir: str
+    resolved_postgres_log_file: str
+    restart_required: bool = True
+
+
 class AdminRefreshRequest(BaseModel):
     image_ids: List[int] = Field(default_factory=list)
     trash_entry_ids: List[int] = Field(default_factory=list)

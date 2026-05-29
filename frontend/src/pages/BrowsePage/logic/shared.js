@@ -3,6 +3,7 @@
  * 页面壳和各逻辑 mixin 都从这里拿统一状态定义，避免在 index.vue 中继续堆积细碎初始化代码。
  */
 import { buildProtectedAssetUrl } from '../../../utils/auth'
+import { API_BASE } from '../../../utils/apiBase'
 import {
   DEFAULT_PAGE_CONFIG,
   PAGE_SIZE_OPTIONS,
@@ -11,8 +12,7 @@ import {
 
 export { DEFAULT_PAGE_CONFIG }
 export { buildProtectedAssetUrl }
-
-export const API_BASE = 'http://127.0.0.1:8000'
+export { API_BASE }
 export const POLL_MS = 180
 export const DEBOUNCE_MS = 300
 export const LONG_PRESS_MS = 220

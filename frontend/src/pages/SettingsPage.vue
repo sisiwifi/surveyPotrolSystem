@@ -218,6 +218,21 @@
       </div>
 
       <div v-if="canManageUsers" class="settings-card">
+        <h3 class="card-title">运行时配置</h3>
+        <p class="card-desc">管理启动器读取的后端端口、嵌入式 PostgreSQL 端口与运行目录。保存后需重启项目。</p>
+
+        <div class="setting-row setting-row--compact">
+          <div class="setting-info">
+            <span class="setting-label">项目冷启动参数</span>
+            <span class="setting-desc">独立写入 backend/runtime_config.json，不和业务设置混在一起；适合切换 API 端口和内置数据库目录。</span>
+          </div>
+          <button class="btn btn--secondary" type="button" @click="$router.push('/settings/runtime-config')">
+            打开运行时配置
+          </button>
+        </div>
+      </div>
+
+      <div v-if="canManageUsers" class="settings-card">
         <h3 class="card-title">用户管理</h3>
         <p class="card-desc">仅管理员可见。可新增用户、重置密码和删除用户；每个用户的数据与配置分别写入各自的用户名子目录。</p>
 
@@ -385,6 +400,7 @@
 </template>
 
 <script>
+import { API_BASE } from '../utils/apiBase'
 import { authState } from '../utils/auth'
 import BreadcrumbHeader from '../components/BreadcrumbHeader.vue'
 import TagManagerPanel from '../components/TagManagerPanel.vue'
@@ -394,8 +410,6 @@ import {
   PAGE_SIZE_OPTIONS,
   fetchPageConfig,
 } from '../utils/pageConfig'
-
-const API_BASE = 'http://127.0.0.1:8000'
 
 function toErrorMessage(err) {
   if (!err) return '未知错误'

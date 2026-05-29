@@ -1,7 +1,6 @@
 import { buildSearchRequestParams, formatSearchModeLabel } from '../pages/topLevelPageConvention'
+import { API_BASE } from './apiBase'
 import { normalizeAnimatedFields, resolveAnimatedBadgeLabel } from './animatedMedia'
-
-const API_BASE = 'http://127.0.0.1:8000'
 
 function toUnixSeconds(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {

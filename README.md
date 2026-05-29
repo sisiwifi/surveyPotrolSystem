@@ -34,8 +34,14 @@ picTagView 是一个本地图片与外业数据管理系统，后端基于 FastA
 - Python 3.10 或更高版本
 - Node.js 16 或更高版本
 - npm（随 Node.js 一起安装）
-- PostgreSQL 16 或更高版本，且本机可启动 `postgres` 服务
 - Git
+
+当前仓库已经开始接入“项目自管运行时”模式：
+
+- 后端与启动脚本会优先读取 `backend/runtime_config.json`
+- `build/start_project.bat` 会先尝试拉起 `backend/runtime/postgresql/bin` 下的便携式 PostgreSQL 运行时
+- 当前仓库**尚未直接附带** PostgreSQL / PostGIS 二进制；如果你要走内置数据库方案，需要自行把便携式运行时放到该目录
+- 如果你暂时还在过渡阶段，也可以继续让配置指向系统 PostgreSQL 服务
 
 建议使用 PowerShell 或命令提示符执行下面的命令。
 
@@ -74,7 +80,7 @@ python -m pip install --upgrade pip
 python -m pip install -r backend\requirements.txt
 ```
 
-后端依赖装完后，请确认本机 PostgreSQL 服务可用。当前默认连接参数如下，可通过环境变量覆盖：
+后端依赖装完后，请确认运行时配置正确。当前默认连接参数会优先从 `backend/runtime_config.json` 读取，也可通过环境变量覆盖：
 
 - `SURVEY_DB_HOST=127.0.0.1`
 - `SURVEY_DB_PORT=5432`
@@ -114,9 +120,13 @@ build\start_project.bat
 
 这个脚本会做下面几件事：
 
-1. 使用根目录 `.venv` 启动后端 `uvicorn app.main:app --reload`
-2. 检查后端是否能响应 `http://127.0.0.1:8000/`
-3. 在前端目录执行 `npm run serve`
+1. 读取 `backend/runtime_config.json` 中的后端与数据库运行时配置
+2. 调用 `build/pg_runtime.ps1 start`，优先尝试启动 `backend/runtime/postgresql/bin` 下的便携式 PostgreSQL
+3. 使用根目录 `.venv` 按配置端口启动后端 `uvicorn app.main:app --reload`
+4. 检查后端是否能响应当前配置端口
+5. 在前端目录执行 `npm run serve`，并把 `VUE_APP_API_BASE` 注入为当前后端地址
+
+如果当前还没有放入便携式 PostgreSQL 运行时，启动脚本会明确提示缺失目录；在这种过渡状态下，你仍可以继续让配置指向系统 PostgreSQL。
 
 后端首次启动会自动完成以下动作：
 
@@ -142,6 +152,16 @@ cd backend
 cd frontend
 npm run serve
 ```
+
+嵌入式 PostgreSQL 运行时：
+
+```powershell
+build\pg_runtime.ps1 start
+build\pg_runtime.ps1 status
+build\pg_runtime.ps1 stop
+```
+
+如果你已经放好了便携式 PostgreSQL/PostGIS 二进制，建议先用上面的命令确认运行时状态，再启动前后端。
 
 ## 5. 启动后访问地址
 
@@ -201,6 +221,15 @@ npm run serve
 
 后端默认占用 `8000`，前端默认占用 `8080`。如果提示端口冲突，先关闭占用这两个端口的旧进程，再重新启动。
 
+数据库端口现在也可以通过 `backend/runtime_config.json` 单独配置；如果你要与系统 PostgreSQL 共存，建议把项目数据库端口切到非 `5432`。
+
+### 7.5 找不到内置 PostgreSQL 运行时
+
+如果启动脚本提示找不到 `backend/runtime/postgresql/bin`，说明仓库当前还没有内置数据库二进制。此时有两种做法：
+
+1. 临时继续使用系统 PostgreSQL，并保持 `backend/runtime_config.json` 指向对应 host/port。
+2. 把便携式 PostgreSQL + PostGIS 运行时放到 `backend/runtime/postgresql`，再重新运行 `build/start_project.bat`。
+
 ## 8. 目录结构概览
 
 ```text
@@ -242,7 +271,9 @@ build\start_project.bat
 
 - 后端入口文件是 `backend/app/main.py`
 - 前端开发服务由 Vue CLI 提供
-- 项目没有配置前端代理，前端默认直连 `http://127.0.0.1:8000`
+- 前端会从启动脚本注入的 `VUE_APP_API_BASE` 读取后端地址；如果你直接单独启动前端，默认仍回退到 `http://127.0.0.1:8000`
 - PostgreSQL 数据库、种子账号和运行目录会在后端首次启动时自动初始化
+- 项目级运行时配置文件是 `backend/runtime_config.json`
+- 如果已经放入便携式 PostgreSQL 运行时，可以用 `build/pg_runtime.ps1` 和 `build/stop_project.bat` 管理它
 
 如果你只是想快速验证项目能跑起来，优先执行 `build\start_project.bat`。

@@ -12,6 +12,7 @@ import BrowsePage from '../pages/BrowsePage/index.vue'
 import CategorySettingsPage from '../pages/CategorySettingsPage.vue'
 import LoginPage from '../pages/LoginPage.vue'
 import MapConfigPage from '../pages/MapConfigPage.vue'
+import RuntimeConfigPage from '../pages/RuntimeConfigPage.vue'
 import SettingsPage from '../pages/SettingsPage.vue'
 import SearchPage from '../pages/SearchPage.vue'
 import FavoritesPage from '../pages/FavoritesPage.vue'
@@ -143,6 +144,12 @@ const routes = [
     path: '/settings/map-config',
     name: 'settings-map-config',
     component: MapConfigPage
+  },
+  {
+    path: '/settings/runtime-config',
+    name: 'settings-runtime-config',
+    component: RuntimeConfigPage,
+    meta: { requiresAdmin: true }
   },
   {
     path: '/settings/users',

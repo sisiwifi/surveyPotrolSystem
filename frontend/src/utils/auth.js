@@ -1,6 +1,6 @@
 import { reactive } from 'vue'
+import { API_BASE } from './apiBase'
 
-export const API_BASE = 'http://127.0.0.1:8000'
 const STORAGE_KEY = 'survey-potrol-auth-v1'
 const fetchHost = typeof window !== 'undefined'
   ? window

@@ -7,6 +7,13 @@ from pathlib import Path
 from typing import Callable
 from urllib.parse import quote_plus
 
+from app.core.runtime_config import (
+	get_backend_runtime_config,
+	get_database_runtime_config,
+	get_runtime_config_path,
+	resolve_backend_path,
+)
+
 
 class DynamicPath(os.PathLike):
 	def __init__(self, resolver: Callable[[], Path], label: str):
@@ -43,12 +50,56 @@ TRASH_ROOT_DIR = PROJECT_ROOT / "trash"
 SYSTEM_DB_PATH = DATA_DIR / "system.db"
 LEGACY_DB_PATH = DATA_DIR / "app.db"
 
-DB_DRIVER = os.getenv("SURVEY_DB_DRIVER", "postgresql+psycopg")
-POSTGRES_HOST = os.getenv("SURVEY_DB_HOST", "127.0.0.1")
-POSTGRES_PORT = int(os.getenv("SURVEY_DB_PORT", "5432"))
-POSTGRES_USER = os.getenv("SURVEY_DB_USER", "postgres")
-POSTGRES_PASSWORD = os.getenv("SURVEY_DB_PASSWORD", "postgres123")
-POSTGRES_DB_NAME = os.getenv("SURVEY_DB_NAME", "survey_potrol_system")
+RUNTIME_CONFIG_PATH = get_runtime_config_path()
+_BACKEND_RUNTIME_CONFIG = get_backend_runtime_config()
+_DATABASE_RUNTIME_CONFIG = get_database_runtime_config()
+
+
+def _read_env_int(name: str, default: int) -> int:
+	raw_value = os.getenv(name)
+	if raw_value is None or not str(raw_value).strip():
+		return default
+	try:
+		return int(str(raw_value).strip())
+	except Exception:
+		return default
+
+
+def _read_env_bool(name: str, default: bool) -> bool:
+	raw_value = os.getenv(name)
+	if raw_value is None or not str(raw_value).strip():
+		return default
+
+	normalized = str(raw_value).strip().lower()
+	if normalized in {"1", "true", "yes", "on"}:
+		return True
+	if normalized in {"0", "false", "no", "off"}:
+		return False
+	return default
+
+
+BACKEND_HOST = os.getenv("SURVEY_BACKEND_HOST", str(_BACKEND_RUNTIME_CONFIG.get("host", "127.0.0.1")))
+BACKEND_PORT = _read_env_int("SURVEY_BACKEND_PORT", int(_BACKEND_RUNTIME_CONFIG.get("port", 8000)))
+
+EMBEDDED_POSTGRES_ENABLED = _read_env_bool(
+	"SURVEY_EMBEDDED_POSTGRES_ENABLED",
+	bool(_DATABASE_RUNTIME_CONFIG.get("embedded", True)),
+)
+DB_DRIVER = os.getenv("SURVEY_DB_DRIVER", str(_DATABASE_RUNTIME_CONFIG.get("driver", "postgresql+psycopg")))
+POSTGRES_HOST = os.getenv("SURVEY_DB_HOST", str(_DATABASE_RUNTIME_CONFIG.get("host", "127.0.0.1")))
+POSTGRES_PORT = _read_env_int("SURVEY_DB_PORT", int(_DATABASE_RUNTIME_CONFIG.get("port", 5432)))
+POSTGRES_USER = os.getenv("SURVEY_DB_USER", str(_DATABASE_RUNTIME_CONFIG.get("user", "postgres")))
+POSTGRES_PASSWORD = os.getenv("SURVEY_DB_PASSWORD", str(_DATABASE_RUNTIME_CONFIG.get("password", "postgres123")))
+POSTGRES_DB_NAME = os.getenv("SURVEY_DB_NAME", str(_DATABASE_RUNTIME_CONFIG.get("database", "survey_potrol_system")))
+POSTGRES_ADMIN_DB_NAME = os.getenv(
+	"SURVEY_DB_ADMIN_NAME",
+	str(_DATABASE_RUNTIME_CONFIG.get("admin_database", "postgres")),
+)
+POSTGRES_RUNTIME_DIR = resolve_backend_path(str(_DATABASE_RUNTIME_CONFIG.get("runtime_dir", "runtime/postgresql")))
+POSTGRES_BIN_DIR = resolve_backend_path(str(_DATABASE_RUNTIME_CONFIG.get("bin_dir", "runtime/postgresql/bin")))
+POSTGRES_CLUSTER_DIR = resolve_backend_path(str(_DATABASE_RUNTIME_CONFIG.get("cluster_dir", "data/postgresql/cluster")))
+POSTGRES_LOG_FILE = resolve_backend_path(str(_DATABASE_RUNTIME_CONFIG.get("log_file", "data/postgresql/log/postgresql.log")))
+POSTGRES_DATA_ROOT_DIR = POSTGRES_CLUSTER_DIR.parent
 
 
 def build_postgres_dsn(database_name: str) -> str:
@@ -58,7 +109,7 @@ def build_postgres_dsn(database_name: str) -> str:
 
 
 DATABASE_URL = os.getenv("DATABASE_URL", build_postgres_dsn(POSTGRES_DB_NAME))
-DATABASE_ADMIN_URL = os.getenv("DATABASE_ADMIN_URL", build_postgres_dsn("postgres"))
+DATABASE_ADMIN_URL = os.getenv("DATABASE_ADMIN_URL", build_postgres_dsn(POSTGRES_ADMIN_DB_NAME))
 
 for root_path in (
 	DATA_DIR,
@@ -67,6 +118,9 @@ for root_path in (
 	VIEWER_ICON_DIR,
 	MEDIA_ROOT_DIR,
 	TRASH_ROOT_DIR,
+	POSTGRES_RUNTIME_DIR,
+	POSTGRES_DATA_ROOT_DIR,
+	POSTGRES_LOG_FILE.parent,
 ):
 	root_path.mkdir(parents=True, exist_ok=True)
 

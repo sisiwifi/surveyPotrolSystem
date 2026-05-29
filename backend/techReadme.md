@@ -47,11 +47,16 @@
 | `VIEWER_ICON_DIR` | `backend/data/viewer_icons` |
 | `MEDIA_DIR` | `media` |
 | `TRASH_DIR` | `trash` |
+| `RUNTIME_CONFIG_PATH` | `backend/runtime_config.json` |
 | `DATABASE_URL` | 默认指向 `postgresql+psycopg://postgres:postgres123@127.0.0.1:5432/survey_potrol_system` |
 | `DATABASE_ADMIN_URL` | 默认指向 `postgresql+psycopg://postgres:postgres123@127.0.0.1:5432/postgres` |
+| `POSTGRES_RUNTIME_DIR` | `backend/runtime/postgresql` |
+| `POSTGRES_BIN_DIR` | `backend/runtime/postgresql/bin` |
+| `POSTGRES_CLUSTER_DIR` | `backend/data/postgresql/cluster` |
+| `POSTGRES_LOG_FILE` | `backend/data/postgresql/log/postgresql.log` |
 | `SYSTEM_DB_PATH` / `LEGACY_DB_PATH` | 仅用于兼容清理旧 SQLite 文件 |
 
-模块导入时会自动确保这些目录存在；数据库连接参数则支持通过 `SURVEY_DB_*` 或 `DATABASE_URL` 覆盖。
+模块导入时会自动确保这些目录存在；数据库连接参数现在优先读取 `backend/runtime_config.json`，并继续支持通过 `SURVEY_DB_*` 或 `DATABASE_URL` 覆盖。
 
 ## 3. 应用启动流程
 
@@ -129,6 +134,7 @@
 ### 5.1.1 统一数据库与初始化
 
 - `db/session.py` 负责把原来的多 SQLite 结构收束为单一 PostgreSQL 主库。
+- `services/runtime_settings_service.py` 负责读写 `backend/runtime_config.json`，供运行时配置 API 使用。
 - 启动时会自动：
   - 连接 `DATABASE_ADMIN_URL`
   - 在缺失时创建目标数据库
@@ -137,6 +143,7 @@
   - 补齐种子用户和默认主分类
 - `get_system_session()` 与 `get_session()` 仍保留旧调用习惯，以减少服务层连锁改动。
 - `reset_application_state()` 会清空主库、兼容删除旧 SQLite 文件，并重建用户目录、缓存目录与种子数据。
+- `build/pg_runtime.ps1` 负责内置 PostgreSQL 生命周期控制：当前会读取运行时配置、检查 `backend/runtime/postgresql/bin` 是否存在，并在缺少便携式二进制时给出明确提示。
 
 ### 5.1.1 图库管理聚合
 

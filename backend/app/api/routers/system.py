@@ -7,8 +7,9 @@
 设置项默认值与语义见 backend/api_services.md、backend/techReadme.md。
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.api.deps import AuthenticatedUser, require_admin
 from app.api.schemas import (
     CacheThumbSettingRequest,
     CacheThumbSettingResponse,
@@ -18,6 +19,8 @@ from app.api.schemas import (
     MonthCoverSettingResponse,
     PageConfigRequest,
     PageConfigResponse,
+    RuntimeConfigRequest,
+    RuntimeConfigResponse,
     TagMatchSettingRequest,
     TagMatchSettingResponse,
     ViewerPreferenceRequest,
@@ -47,6 +50,7 @@ from app.services.app_settings_service import (
     set_page_config,
     set_tag_match_setting,
 )
+from app.services.runtime_settings_service import get_runtime_settings, set_runtime_settings
 from app.services.viewer_service import (
     IMAGE_EXTENSIONS,
     clear_preferred_viewer_id,
@@ -189,6 +193,20 @@ def set_map_config_api(body: MapConfigRequest) -> MapConfigResponse:
         default_center=next_setting.get("default_center", DEFAULT_MAP_CENTER),
         default_zoom=next_setting.get("default_zoom", DEFAULT_MAP_ZOOM),
     )
+
+
+@router.get("/api/system/runtime-config", response_model=RuntimeConfigResponse)
+def get_runtime_config_api(_admin: AuthenticatedUser = Depends(require_admin)) -> RuntimeConfigResponse:
+    return RuntimeConfigResponse(**get_runtime_settings())
+
+
+@router.post("/api/system/runtime-config", response_model=RuntimeConfigResponse)
+def set_runtime_config_api(
+    body: RuntimeConfigRequest,
+    _admin: AuthenticatedUser = Depends(require_admin),
+) -> RuntimeConfigResponse:
+    next_setting = set_runtime_settings(body.model_dump())
+    return RuntimeConfigResponse(**next_setting)
 
 
 @router.get("/api/system/tag-match-setting", response_model=TagMatchSettingResponse)
