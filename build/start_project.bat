@@ -8,22 +8,36 @@ if not exist "%BACKEND_PY%" (
   exit /b 1
 )
 
-for /f "usebackq delims=" %%I in (`"%BACKEND_PY%" "%~dp0runtime_probe.py"`) do set "%%I"
+set "RUNTIME_PROBE_OUTPUT=%TEMP%\survey_runtime_%RANDOM%%RANDOM%.env"
+"%BACKEND_PY%" "%~dp0runtime_probe.py" > "%RUNTIME_PROBE_OUTPUT%"
+if not %errorlevel%==0 (
+  echo Failed to resolve runtime settings from build\runtime_probe.py.
+  if exist "%RUNTIME_PROBE_OUTPUT%" del /q "%RUNTIME_PROBE_OUTPUT%" >nul 2>&1
+  exit /b %errorlevel%
+)
+for /f "usebackq delims=" %%I in ("%RUNTIME_PROBE_OUTPUT%") do set "%%I"
+if exist "%RUNTIME_PROBE_OUTPUT%" del /q "%RUNTIME_PROBE_OUTPUT%" >nul 2>&1
 
 if not defined SURVEY_BACKEND_HOST set "SURVEY_BACKEND_HOST=127.0.0.1"
 if not defined SURVEY_BACKEND_PORT set "SURVEY_BACKEND_PORT=8000"
 
-echo Starting embedded PostgreSQL runtime...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pg_runtime.ps1" start
-if %errorlevel%==2 (
-  echo Embedded PostgreSQL runtime not found. Continuing with current database endpoint %SURVEY_POSTGRES_HOST%:%SURVEY_POSTGRES_PORT%.
-) else if not %errorlevel%==0 (
-  echo Embedded PostgreSQL runtime failed to start.
-  exit /b %errorlevel%
+echo Cleaning previous project processes...
+call "%~dp0stop_project.bat" >nul 2>&1
+
+if /I not "%SURVEY_EMBEDDED_POSTGRES_ENABLED%"=="1" (
+  echo This project requires embedded PostgreSQL.
+  echo Run build\repair_embedded_pg.bat to restore the embedded runtime configuration, then rerun build\start_project.bat.
+  exit /b 2
 )
 
+call :ensure_embedded_runtime
+if not %errorlevel%==0 exit /b %errorlevel%
+
+call :start_embedded_runtime
+if not %errorlevel%==0 exit /b %errorlevel%
+
 echo Starting backend on %SURVEY_BACKEND_HOST%:%SURVEY_BACKEND_PORT%...
-start "picTagView-backend" cmd /k "cd /d %~dp0..\backend && set SURVEY_BACKEND_HOST=%SURVEY_BACKEND_HOST% && set SURVEY_BACKEND_PORT=%SURVEY_BACKEND_PORT% && %BACKEND_PY% -m uvicorn app.main:app --reload --host %SURVEY_BACKEND_HOST% --port %SURVEY_BACKEND_PORT%"
+start "picTagView-backend" cmd /k "title picTagView-backend && cd /d %~dp0..\backend && set SURVEY_BACKEND_HOST=%SURVEY_BACKEND_HOST% && set SURVEY_BACKEND_PORT=%SURVEY_BACKEND_PORT% && %BACKEND_PY% -m uvicorn app.main:app --reload --host %SURVEY_BACKEND_HOST% --port %SURVEY_BACKEND_PORT%"
 
 echo Waiting for backend to initialize...
 timeout /t 2 /nobreak >nul
@@ -39,7 +53,37 @@ if %errorlevel%==0 (
 )
 
 echo Starting frontend with API base %VUE_APP_API_BASE%...
-start "picTagView-frontend" cmd /k "cd /d %~dp0..\frontend && set VUE_APP_API_BASE=%VUE_APP_API_BASE% && npm run serve"
+start "picTagView-frontend" cmd /k "title picTagView-frontend && cd /d %~dp0..\frontend && set VUE_APP_API_BASE=%VUE_APP_API_BASE% && npm run serve"
 
 echo All components started.
 endlocal
+exit /b 0
+
+:ensure_embedded_runtime
+if exist "%SURVEY_POSTGRES_BIN_DIR%\pg_ctl.exe" if exist "%SURVEY_POSTGRES_BIN_DIR%\initdb.exe" exit /b 0
+echo Embedded PostgreSQL is enabled, but runtime binaries are missing under %SURVEY_POSTGRES_BIN_DIR%.
+echo Run build\repair_embedded_pg.bat to copy a local PostgreSQL runtime into the project and initialize the embedded cluster.
+exit /b 2
+
+:start_embedded_runtime
+echo Starting embedded PostgreSQL runtime...
+powershell -NoProfile -Command "$identity = [Security.Principal.WindowsIdentity]::GetCurrent(); $principal = [Security.Principal.WindowsPrincipal]::new($identity); if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { exit 1 } exit 0" >nul 2>&1
+if %errorlevel%==0 goto start_embedded_runtime_direct
+
+echo Administrator terminal detected. Starting embedded PostgreSQL in a standard user session...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0run_unelevated.ps1" -CommandPath "%~dp0pg_runtime.bat" -Arguments "start" -Wait -WaitTimeoutSeconds 30
+if not %errorlevel%==0 (
+  echo Failed to start embedded PostgreSQL from a standard user session.
+  echo Run build\stop_project.bat, then rerun build\start_project.bat. If it still fails, run build\repair_embedded_pg.bat.
+  exit /b 5
+)
+exit /b 0
+
+:start_embedded_runtime_direct
+call "%~dp0pg_runtime.bat" start
+if %errorlevel%==5 exit /b 5
+if not %errorlevel%==0 (
+  echo Embedded PostgreSQL runtime failed to start.
+  exit /b %errorlevel%
+)
+exit /b 0

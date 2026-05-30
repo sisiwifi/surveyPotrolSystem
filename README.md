@@ -38,10 +38,10 @@ picTagView 是一个本地图片与外业数据管理系统，后端基于 FastA
 
 当前仓库已经开始接入“项目自管运行时”模式：
 
-- 后端与启动脚本会优先读取 `backend/runtime_config.json`
-- `build/start_project.bat` 会先尝试拉起 `backend/runtime/postgresql/bin` 下的便携式 PostgreSQL 运行时
-- 当前仓库**尚未直接附带** PostgreSQL / PostGIS 二进制；如果你要走内置数据库方案，需要自行把便携式运行时放到该目录
-- 如果你暂时还在过渡阶段，也可以继续让配置指向系统 PostgreSQL 服务
+- 后端与启动脚本会读取 `backend/runtime_config.json`
+- 本工程只支持内置 PostgreSQL；`build/start_project.bat` 启动前会检查 `backend/runtime/postgresql/bin` 是否完整
+- 当前仓库**尚未直接附带** PostgreSQL / PostGIS 二进制；第一次在新机器上运行时，需要先执行 `build\repair_embedded_pg.bat`
+- 修复脚本会自动发现本机 PostgreSQL 安装并复制到项目运行时目录；如果 `5432` 已被占用，会自动把内置库改到空闲端口
 
 建议使用 PowerShell 或命令提示符执行下面的命令。
 
@@ -88,6 +88,25 @@ python -m pip install -r backend\requirements.txt
 - `SURVEY_DB_PASSWORD=postgres123`
 - `SURVEY_DB_NAME=survey_potrol_system`
 
+本工程必须使用内置 PostgreSQL。第一次在新机器上运行时，先执行：
+
+```powershell
+build\repair_embedded_pg.bat
+```
+
+如果自动发现不到本机 PostgreSQL 安装，可以显式指定来源目录：
+
+```powershell
+build\repair_embedded_pg.bat -SourceRoot "C:\Program Files\PostgreSQL\17"
+```
+
+这个修复脚本会完成四件事：
+
+1. 强制把 `database.embedded` 维持为 `true`
+2. 自动发现并复制本机 PostgreSQL 运行时到 `backend/runtime/postgresql`
+3. 如果 `5432` 已被其他 PostgreSQL 占用，自动把内置库端口改写为一个空闲端口
+4. 初始化 `backend/data/postgresql/cluster`，为后续一键启动做好准备
+
 如果你的系统禁止执行 PowerShell 脚本，可以改用 cmd：
 
 ```bat
@@ -121,12 +140,15 @@ build\start_project.bat
 这个脚本会做下面几件事：
 
 1. 读取 `backend/runtime_config.json` 中的后端与数据库运行时配置
-2. 调用 `build/pg_runtime.ps1 start`，优先尝试启动 `backend/runtime/postgresql/bin` 下的便携式 PostgreSQL
-3. 使用根目录 `.venv` 按配置端口启动后端 `uvicorn app.main:app --reload`
-4. 检查后端是否能响应当前配置端口
-5. 在前端目录执行 `npm run serve`，并把 `VUE_APP_API_BASE` 注入为当前后端地址
+2. 先执行一次旧实例清理，关闭上次残留的后端 / 前端窗口，并尝试停止内置 PostgreSQL
+3. 检查内置 PostgreSQL 运行时；如果缺失，则明确提示先运行 `build\repair_embedded_pg.bat`
+4. 检查当前终端是否是管理员权限；如果是，只把内置 PostgreSQL 启动步骤转发到标准用户会话，再回到当前会话继续拉起后端和前端
+5. 调用 `build/pg_runtime.ps1 start` 启动 `backend/runtime/postgresql/bin` 下的内置 PostgreSQL
+6. 使用根目录 `.venv` 按配置端口启动后端 `uvicorn app.main:app --reload`
+7. 检查后端是否能响应当前配置端口
+8. 在前端目录执行 `npm run serve`，并把 `VUE_APP_API_BASE` 注入为当前后端地址
 
-如果当前还没有放入便携式 PostgreSQL 运行时，启动脚本会明确提示缺失目录；在这种过渡状态下，你仍可以继续让配置指向系统 PostgreSQL。
+如果当前还没有建立内置 PostgreSQL 运行时，启动脚本会直接要求先执行 `build\repair_embedded_pg.bat`；修复完成后，再重新运行 `build\start_project.bat`。
 
 后端首次启动会自动完成以下动作：
 
@@ -217,18 +239,45 @@ npm run serve
 
 这是 PowerShell 的执行策略限制。你可以改用 `activate.bat`，或者临时放宽当前会话策略后再激活虚拟环境。
 
-### 7.4 端口被占用
+### 7.4 管理员终端启动失败
+
+Windows 下的内置 PostgreSQL 不能直接从“以管理员身份运行”的终端里启动。
+
+当前的 `build\start_project.bat` 已经会自动把“内置 PostgreSQL 启动”这一步转发到标准用户会话，所以即使你是从管理员 VS Code / 终端里点的启动脚本，也可以继续跑完整套启动流程。
+
+只有在自动转发失败时，你才需要手工关闭管理员终端，重新打开一个**普通权限**的 PowerShell 或 cmd，再运行：
+
+```powershell
+build\start_project.bat
+```
+
+如果之前残留了旧的 backend / frontend 窗口，可以先执行：
+
+```powershell
+build\stop_project.bat
+```
+
+### 7.5 端口被占用
 
 后端默认占用 `8000`，前端默认占用 `8080`。如果提示端口冲突，先关闭占用这两个端口的旧进程，再重新启动。
 
-数据库端口现在也可以通过 `backend/runtime_config.json` 单独配置；如果你要与系统 PostgreSQL 共存，建议把项目数据库端口切到非 `5432`。
+如果 `5432` 已被系统 PostgreSQL 占用，请重新执行 `build\repair_embedded_pg.bat`。修复脚本会为项目内置数据库选择一个空闲端口，并把结果回写到 `backend/runtime_config.json`。
 
-### 7.5 找不到内置 PostgreSQL 运行时
+### 7.6 找不到内置 PostgreSQL 运行时
 
-如果启动脚本提示找不到 `backend/runtime/postgresql/bin`，说明仓库当前还没有内置数据库二进制。此时有两种做法：
+如果启动脚本提示找不到 `backend/runtime/postgresql/bin`，说明当前机器还没有建立好项目内置数据库运行时。先执行：
 
-1. 临时继续使用系统 PostgreSQL，并保持 `backend/runtime_config.json` 指向对应 host/port。
-2. 把便携式 PostgreSQL + PostGIS 运行时放到 `backend/runtime/postgresql`，再重新运行 `build/start_project.bat`。
+```powershell
+build\repair_embedded_pg.bat
+```
+
+如果自动发现不到本机 PostgreSQL 安装，再显式指定来源目录：
+
+```powershell
+build\repair_embedded_pg.bat -SourceRoot "C:\Program Files\PostgreSQL\17"
+```
+
+修复脚本完成后，再重新运行 `build\start_project.bat`。
 
 ## 8. 目录结构概览
 
@@ -243,6 +292,12 @@ surveyPotrolSystem_main/
 │   ├── src/                # 页面、组件、路由、MapLibre 地图与工具
 │   └── package.json        # 前端依赖与脚本
 ├── build/
+│   ├── pg_runtime.ps1      # 内置 PostgreSQL 生命周期脚本
+│   ├── pg_runtime.bat      # 批处理入口；start_project/stop_project 通过它调用内置 PostgreSQL 生命周期
+│   ├── repair_embedded_pg.bat # 内置 PostgreSQL 一键修复入口
+│   ├── repair_embedded_pg.ps1 # 复制运行时、改端口并初始化集群
+│   ├── run_unelevated.ps1  # 管理员终端下自动降权重放 start_project 的内部辅助脚本
+│   ├── stop_project.bat    # 关闭旧的后端 / 前端窗口并停止内置数据库
 │   └── start_project.bat   # 一键启动脚本
 ├── media/                  # 媒体目录
 ├── trash/                  # 回收站物理目录
@@ -259,6 +314,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r backend\requirements.txt
+build\repair_embedded_pg.bat
 cd frontend
 npm install
 cd ..
@@ -274,6 +330,7 @@ build\start_project.bat
 - 前端会从启动脚本注入的 `VUE_APP_API_BASE` 读取后端地址；如果你直接单独启动前端，默认仍回退到 `http://127.0.0.1:8000`
 - PostgreSQL 数据库、种子账号和运行目录会在后端首次启动时自动初始化
 - 项目级运行时配置文件是 `backend/runtime_config.json`
-- 如果已经放入便携式 PostgreSQL 运行时，可以用 `build/pg_runtime.ps1` 和 `build/stop_project.bat` 管理它
+- 如果当前机器还没有建立内置 PostgreSQL 运行时，先执行 `build\repair_embedded_pg.bat`
+- 内置 PostgreSQL 建好后，可以用 `build\pg_runtime.ps1` 管理它
 
 如果你只是想快速验证项目能跑起来，优先执行 `build\start_project.bat`。

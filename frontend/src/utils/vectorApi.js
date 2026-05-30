@@ -2,7 +2,8 @@
  * 矢量数据前端 API 封装。
  * 统一提供列表、导入、样式更新、删除和受鉴权保护的 GeoJSON 访问地址。
  */
-import { API_BASE, buildProtectedAssetUrl } from './auth'
+import { API_BASE } from './apiBase'
+import { buildProtectedAssetUrl } from './auth'
 
 async function readError(response) {
   const payload = await response.json().catch(() => ({}))

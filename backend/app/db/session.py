@@ -20,8 +20,10 @@ from sqlmodel import SQLModel, Session, create_engine
 from app.core.config import (
     DATABASE_ADMIN_URL,
     DATABASE_URL,
+    EMBEDDED_POSTGRES_ENABLED,
     LEGACY_DB_PATH,
     MEDIA_ROOT_DIR,
+    POSTGRES_BIN_DIR,
     SYSTEM_DB_PATH,
     TEMP_ROOT_DIR,
     TRASH_ROOT_DIR,
@@ -34,6 +36,31 @@ _engine: Engine | None = None
 _db_initialized = False
 _engine_lock = RLock()
 _DATABASE_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]{0,62}$")
+
+
+def _ensure_embedded_runtime_ready() -> None:
+    if not EMBEDDED_POSTGRES_ENABLED:
+        raise RuntimeError(
+            "本工程仅支持内置 PostgreSQL。"
+            "请保持 database.embedded=true，"
+            "并先运行 build\\repair_embedded_pg.bat 建立内置数据库运行时。"
+        )
+
+    required_files = (
+        POSTGRES_BIN_DIR / "pg_ctl.exe",
+        POSTGRES_BIN_DIR / "initdb.exe",
+    )
+    missing_files = [str(path) for path in required_files if not path.exists()]
+    if not missing_files:
+        return
+
+    missing_paths = ", ".join(missing_files)
+    raise RuntimeError(
+        "已启用内置 PostgreSQL，但缺少运行时二进制："
+        f"{missing_paths}。"
+        "请先运行 build\\repair_embedded_pg.bat，"
+        "由修复程序建立本工程要求的内置 PostgreSQL 运行时。"
+    )
 
 
 def _load_all_models() -> tuple[type, ...]:
@@ -80,6 +107,7 @@ def _extract_database_name(database_url: str) -> str:
 
 
 def _create_database_if_missing() -> None:
+    _ensure_embedded_runtime_ready()
     database_name = _extract_database_name(DATABASE_URL)
     admin_engine = create_engine(DATABASE_ADMIN_URL, isolation_level="AUTOCOMMIT", pool_pre_ping=True)
     try:

@@ -1,19 +1,20 @@
 @echo off
 setlocal
 
-echo Stopping embedded PostgreSQL runtime...
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0pg_runtime.ps1" stop
-if %errorlevel%==2 (
-  echo Embedded PostgreSQL runtime directory is not provisioned yet.
-  echo Close backend and frontend terminals manually if they are still running.
-  exit /b 0
-)
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$projectRoot = [System.IO.Path]::GetFullPath('%~dp0..');" ^
+  "$targets = Get-CimInstance Win32_Process | Where-Object {" ^
+  "  $_.CommandLine -and (" ^
+  "    ($_.Name -ieq 'cmd.exe' -and (" ^
+  "      $_.CommandLine.Contains('title picTagView-backend') -or" ^
+  "      $_.CommandLine.Contains('title picTagView-frontend') -or" ^
+  "      ($_.CommandLine.Contains($projectRoot) -and ($_.CommandLine.Contains('uvicorn app.main:app') -or $_.CommandLine.Contains('npm run serve')))" ^
+  "    )) -or" ^
+  "    ($_.Name -ieq 'python.exe' -and $_.CommandLine.Contains($projectRoot) -and $_.CommandLine.Contains('uvicorn app.main:app')) -or" ^
+  "    ($_.Name -ieq 'node.exe' -and $_.CommandLine.Contains($projectRoot) -and ($_.CommandLine.Contains('npm run serve') -or $_.CommandLine.Contains('vue-cli-service')))" ^
+  "  )" ^
+  "};" ^
+  "foreach ($process in $targets) { cmd.exe /c \"taskkill /PID $($process.ProcessId) /T /F\" | Out-Null }" >nul 2>&1
 
-if not %errorlevel%==0 (
-  echo Failed to stop embedded PostgreSQL runtime.
-  exit /b %errorlevel%
-)
-
-echo Embedded PostgreSQL runtime stopped.
-echo Close backend and frontend terminals manually if they are still running.
-endlocal
+call "%~dp0pg_runtime.bat" stop >nul 2>&1
+exit /b 0

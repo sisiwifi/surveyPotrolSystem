@@ -61,7 +61,7 @@ def _build_runtime_settings(raw_config: dict) -> dict:
         "config_path": str(get_runtime_config_path()),
         "backend_host": _normalize_text(backend.get("host"), str(default_backend.get("host", "127.0.0.1"))),
         "backend_port": _normalize_port(backend.get("port"), int(default_backend.get("port", 8000))),
-        "embedded_postgres_enabled": _normalize_bool(database.get("embedded"), bool(default_database.get("embedded", True))),
+        "embedded_postgres_enabled": True,
         "postgres_driver": _normalize_text(database.get("driver"), str(default_database.get("driver", "postgresql+psycopg"))),
         "postgres_host": _normalize_text(database.get("host"), str(default_database.get("host", "127.0.0.1"))),
         "postgres_port": _normalize_port(database.get("port"), int(default_database.get("port", 5432))),
@@ -95,11 +95,7 @@ def set_runtime_settings(setting: dict) -> dict:
         current["backend_host"] = _normalize_text(setting.get("backend_host"), current["backend_host"])
     if "backend_port" in setting:
         current["backend_port"] = _normalize_port(setting.get("backend_port"), current["backend_port"])
-    if "embedded_postgres_enabled" in setting:
-        current["embedded_postgres_enabled"] = _normalize_bool(
-            setting.get("embedded_postgres_enabled"),
-            current["embedded_postgres_enabled"],
-        )
+    current["embedded_postgres_enabled"] = True
     if "postgres_host" in setting:
         current["postgres_host"] = _normalize_text(setting.get("postgres_host"), current["postgres_host"])
     if "postgres_port" in setting:
@@ -130,7 +126,7 @@ def set_runtime_settings(setting: dict) -> dict:
             "port": current["backend_port"],
         },
         "database": {
-            "embedded": current["embedded_postgres_enabled"],
+            "embedded": True,
             "driver": current["postgres_driver"],
             "host": current["postgres_host"],
             "port": current["postgres_port"],

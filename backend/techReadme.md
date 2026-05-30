@@ -143,7 +143,9 @@
   - 补齐种子用户和默认主分类
 - `get_system_session()` 与 `get_session()` 仍保留旧调用习惯，以减少服务层连锁改动。
 - `reset_application_state()` 会清空主库、兼容删除旧 SQLite 文件，并重建用户目录、缓存目录与种子数据。
-- `build/pg_runtime.ps1` 负责内置 PostgreSQL 生命周期控制：当前会读取运行时配置、检查 `backend/runtime/postgresql/bin` 是否存在，并在缺少便携式二进制时给出明确提示。
+- 本工程只支持内置 PostgreSQL；如果运行时缺失，`db/session.py` 和 `build/start_project.bat` 都会要求先执行 `build/repair_embedded_pg.bat`。
+- `build/repair_embedded_pg.ps1` 负责自动发现本机 PostgreSQL 安装、复制 `bin/lib/share` 到 `backend/runtime/postgresql`、强制开启 embedded 模式，并在 `5432` 被占用时改写项目内置库端口。
+- `build/pg_runtime.ps1` 负责内置 PostgreSQL 生命周期控制；它默认假定修复脚本已经建立好运行时与集群。
 
 ### 5.1.1 图库管理聚合
 

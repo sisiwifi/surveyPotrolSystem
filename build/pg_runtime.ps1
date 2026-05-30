@@ -63,6 +63,40 @@ function Test-RuntimeAvailable {
     return $true
 }
 
+function Convert-ToCmdArgument {
+    param([string]$Value)
+
+    return '"' + $Value.Replace('"', '""') + '"'
+}
+
+function Invoke-PgCtl {
+    param(
+        [hashtable]$Snapshot,
+        [string[]]$Arguments
+    )
+
+    $pgCtlExe = Get-RuntimeBinaryPath -Snapshot $Snapshot -FileName 'pg_ctl.exe'
+    $commandParts = @((Convert-ToCmdArgument -Value $pgCtlExe))
+    foreach ($argument in $Arguments) {
+        $commandParts += Convert-ToCmdArgument -Value $argument
+    }
+
+    $commandLine = [string]::Join(' ', $commandParts)
+    $process = Start-Process -FilePath 'cmd.exe' -ArgumentList @('/d', '/s', '/c', $commandLine) -Wait -PassThru -WindowStyle Hidden
+    return $process.ExitCode
+}
+
+function Test-IsElevatedAdministrator {
+    try {
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+        return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    }
+    catch {
+        return $false
+    }
+}
+
 function Ensure-RuntimeLayout {
     param([hashtable]$Snapshot)
 
@@ -79,10 +113,48 @@ function Ensure-RuntimeLayout {
     }
 }
 
+function Sync-ClusterRuntimeSettings {
+    param([hashtable]$Snapshot)
+
+    Ensure-RuntimeLayout -Snapshot $Snapshot
+    $autoConfigPath = Join-Path $Snapshot.ClusterDir 'postgresql.auto.conf'
+    $preservedLines = @()
+    if (Test-Path $autoConfigPath -PathType Leaf) {
+        $preservedLines = Get-Content -Path $autoConfigPath -Encoding utf8 | Where-Object {
+            $_ -notmatch '^\s*(listen_addresses|port)\s*='
+        }
+    }
+
+    $preservedLines += "listen_addresses = '$($Snapshot.Host)'"
+    $preservedLines += "port = $($Snapshot.Port)"
+    Set-Content -Path $autoConfigPath -Value $preservedLines -Encoding ascii
+}
+
+function Test-ClusterReady {
+    param([hashtable]$Snapshot)
+
+    $pgIsReadyExe = Get-RuntimeBinaryPath -Snapshot $Snapshot -FileName 'pg_isready.exe'
+    if (-not (Test-Path $pgIsReadyExe -PathType Leaf)) {
+        return $false
+    }
+
+    for ($attempt = 0; $attempt -lt 10; $attempt++) {
+        & $pgIsReadyExe -h $Snapshot.Host -p $Snapshot.Port | Out-Null
+        if ($LASTEXITCODE -eq 0) {
+            return $true
+        }
+
+        Start-Sleep -Milliseconds 200
+    }
+
+    return $false
+}
+
 function Initialize-Cluster {
     param([hashtable]$Snapshot)
 
     if (Test-Path (Join-Path $Snapshot.ClusterDir 'PG_VERSION') -PathType Leaf) {
+        Sync-ClusterRuntimeSettings -Snapshot $Snapshot
         return
     }
 
@@ -96,10 +168,7 @@ function Initialize-Cluster {
         if ($LASTEXITCODE -ne 0) {
             throw 'initdb failed'
         }
-
-        $postgresqlConfig = Join-Path $Snapshot.ClusterDir 'postgresql.conf'
-        Add-Content -Path $postgresqlConfig -Value "listen_addresses = '$($Snapshot.Host)'"
-        Add-Content -Path $postgresqlConfig -Value "port = $($Snapshot.Port)"
+        Sync-ClusterRuntimeSettings -Snapshot $Snapshot
     }
     finally {
         if (Test-Path $passwordFile) {
@@ -111,11 +180,30 @@ function Initialize-Cluster {
 function Start-Cluster {
     param([hashtable]$Snapshot)
 
+    if (Test-IsElevatedAdministrator) {
+        Write-Host 'Embedded PostgreSQL cannot be started from an elevated Administrator terminal on Windows.'
+        Write-Host 'Close the administrator terminal and rerun build\start_project.bat from a normal terminal.'
+        return 5
+    }
+
     Initialize-Cluster -Snapshot $Snapshot
-    $pgCtlExe = Get-RuntimeBinaryPath -Snapshot $Snapshot -FileName 'pg_ctl.exe'
     $serverOptions = "-h $($Snapshot.Host) -p $($Snapshot.Port)"
-    & $pgCtlExe -D $Snapshot.ClusterDir -l $Snapshot.LogFile -o $serverOptions start -w
-    return $LASTEXITCODE
+    $exitCode = Invoke-PgCtl -Snapshot $Snapshot -Arguments @(
+        '-D', $Snapshot.ClusterDir,
+        '-l', $Snapshot.LogFile,
+        '-o', $serverOptions,
+        'start',
+        '-w'
+    )
+    if ($exitCode -eq 0) {
+        return 0
+    }
+
+    if (Test-ClusterReady -Snapshot $Snapshot) {
+        return 0
+    }
+
+    return $exitCode
 }
 
 function Stop-Cluster {
@@ -125,9 +213,12 @@ function Stop-Cluster {
         return 0
     }
 
-    $pgCtlExe = Get-RuntimeBinaryPath -Snapshot $Snapshot -FileName 'pg_ctl.exe'
-    & $pgCtlExe -D $Snapshot.ClusterDir stop -m fast -w
-    return $LASTEXITCODE
+    return Invoke-PgCtl -Snapshot $Snapshot -Arguments @(
+        '-D', $Snapshot.ClusterDir,
+        'stop',
+        '-m', 'fast',
+        '-w'
+    )
 }
 
 function Get-ClusterStatus {
@@ -138,22 +229,24 @@ function Get-ClusterStatus {
         return 1
     }
 
-    $pgCtlExe = Get-RuntimeBinaryPath -Snapshot $Snapshot -FileName 'pg_ctl.exe'
-    & $pgCtlExe -D $Snapshot.ClusterDir status
-    return $LASTEXITCODE
+    return Invoke-PgCtl -Snapshot $Snapshot -Arguments @(
+        '-D', $Snapshot.ClusterDir,
+        'status'
+    )
 }
 
 try {
     $snapshot = Get-RuntimeSnapshot
 
     if (-not $snapshot.EmbeddedEnabled) {
-        Write-Host 'Embedded PostgreSQL is disabled in runtime config.'
-        exit 0
+        Write-Host 'This project requires embedded PostgreSQL.'
+        Write-Host 'Run build\repair_embedded_pg.bat to re-enable the embedded runtime configuration.'
+        exit 2
     }
 
     if (-not (Test-RuntimeAvailable -Snapshot $snapshot)) {
         Write-Host "Embedded PostgreSQL binaries not found under $($snapshot.BinDir)."
-        Write-Host "Place a portable PostgreSQL + PostGIS runtime there, or update backend/runtime_config.json."
+        Write-Host 'Run build\repair_embedded_pg.bat to copy a local PostgreSQL runtime into the project and initialize the embedded cluster.'
         exit 2
     }
 
@@ -165,6 +258,9 @@ try {
         }
         'start' {
             $exitCode = Start-Cluster -Snapshot $snapshot
+            if ($exitCode -eq 5) {
+                exit 5
+            }
             if ($exitCode -ne 0) {
                 throw "Failed to start embedded PostgreSQL (exit code $exitCode)."
             }
@@ -185,6 +281,9 @@ try {
                 throw "Failed to stop embedded PostgreSQL before restart (exit code $stopCode)."
             }
             $startCode = Start-Cluster -Snapshot $snapshot
+            if ($startCode -eq 5) {
+                exit 5
+            }
             if ($startCode -ne 0) {
                 throw "Failed to restart embedded PostgreSQL (exit code $startCode)."
             }

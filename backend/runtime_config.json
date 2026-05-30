@@ -1,20 +1,20 @@
-{
-  "backend": {
-    "host": "127.0.0.1",
-    "port": 8000
-  },
-  "database": {
-    "embedded": true,
-    "driver": "postgresql+psycopg",
-    "host": "127.0.0.1",
-    "port": 5432,
-    "user": "postgres",
-    "password": "postgres123",
-    "database": "survey_potrol_system",
-    "admin_database": "postgres",
-    "runtime_dir": "runtime/postgresql",
-    "bin_dir": "runtime/postgresql/bin",
-    "cluster_dir": "data/postgresql/cluster",
-    "log_file": "data/postgresql/log/postgresql.log"
-  }
+﻿{
+    "backend":  {
+                    "host":  "127.0.0.1",
+                    "port":  8000
+                },
+    "database":  {
+                     "embedded":  true,
+                     "driver":  "postgresql+psycopg",
+                     "host":  "127.0.0.1",
+                     "port":  55432,
+                     "user":  "postgres",
+                     "password":  "postgres123",
+                     "database":  "survey_potrol_system",
+                     "admin_database":  "postgres",
+                     "runtime_dir":  "runtime/postgresql",
+                     "bin_dir":  "runtime/postgresql/bin",
+                     "cluster_dir":  "data/postgresql/cluster",
+                     "log_file":  "data/postgresql/log/postgresql.log"
+                 }
 }

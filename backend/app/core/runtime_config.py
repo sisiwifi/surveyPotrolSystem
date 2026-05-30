@@ -60,7 +60,7 @@ def load_runtime_config() -> dict[str, Any]:
         return config
 
     try:
-        raw_data = json.loads(runtime_config_path.read_text(encoding="utf-8"))
+        raw_data = json.loads(runtime_config_path.read_text(encoding="utf-8-sig"))
     except Exception:
         return config
 
