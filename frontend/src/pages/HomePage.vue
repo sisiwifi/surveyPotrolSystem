@@ -479,7 +479,6 @@ export default {
         this.tagWallItems = append
           ? mergeTagWallItems(this.tagWallItems, nextItems)
           : mergeTagWallItems([], nextItems)
-        this.persistRecentCoverIds(collectCoverIds(nextItems))
 
         this.$nextTick(() => {
           this.installWallResizeObserver()
