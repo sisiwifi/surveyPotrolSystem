@@ -105,7 +105,7 @@ frontend/
 - 标签墙使用本地虚拟化连续滚动网格，只渲染视口附近的方形卡片，并在接近底部时继续懒加载下一批 Tag。
 - Tag 卡片采用更简洁的纯封面覆盖文案布局：移除额外角标和底部信息面板，主标题放大并居中，描述保持小号文字但同样居中。
 - 当全部可见 Tag 都加载完成时，首页只显示一个会自动消失的浮动提示，而不再在底部长期占用一行状态位。
-- 首页使用 `localStorage` 维护最近展示过的封面图片 id；每次进入首页时会把这段 history 传给后端，尽量为每个 Tag 换一批代表图，只在候选确实不足时才允许重复。
+- 首页首屏只发送 `limit` 和 `offset`；继续懒加载或点击“重新换一批图”时，才会把当前墙面已经展示过的封面图片 id 作为 `exclude_image_ids` 传给后端，尽量避免连续重复代表图。
 - 对于缺失 temp/cache 预览的代表图，首页会复用现有 targeted preview repair 链路：先调用 `POST /api/admin/refresh?mode=quick` 请求指定 image id 的预览修复，再通过 `GET /api/images/meta` 回填新的缩略图地址。
 
 ### 4.1 `GalleryPage.vue`

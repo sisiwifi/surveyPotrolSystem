@@ -36,7 +36,7 @@
             class="home-page__wall-action"
             type="button"
             :disabled="loadingInitial || loadingMore"
-            @click="refreshHomePage"
+            @click="rotateHomePageCovers"
           >
             重新换一批图
           </button>
@@ -130,8 +130,6 @@ const HOME_CARD_MIN_EDGE_PX = 160
 const HOME_VIRTUAL_ROWS = 4
 const HOME_OVERSCAN_ROWS = 2
 const HOME_PREFETCH_THRESHOLD_PX = 960
-const HOME_COVER_HISTORY_KEY = 'ptv:home-cover-history:v1'
-const HOME_COVER_HISTORY_LIMIT = 120
 
 function createEmptyStats() {
   return {
@@ -147,7 +145,7 @@ function toPositiveInt(value) {
   return parsed
 }
 
-function normalizeIdList(values, limit = HOME_COVER_HISTORY_LIMIT) {
+function normalizeIdList(values) {
   const normalized = []
   const seen = new Set()
   for (const value of Array.isArray(values) ? values : []) {
@@ -155,27 +153,8 @@ function normalizeIdList(values, limit = HOME_COVER_HISTORY_LIMIT) {
     if (!parsed || seen.has(parsed)) continue
     seen.add(parsed)
     normalized.push(parsed)
-    if (normalized.length >= limit) break
   }
   return normalized
-}
-
-function readCoverHistory() {
-  if (typeof window === 'undefined') return []
-  try {
-    return normalizeIdList(JSON.parse(window.localStorage.getItem(HOME_COVER_HISTORY_KEY) || '[]'))
-  } catch {
-    return []
-  }
-}
-
-function persistCoverHistory(values) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(HOME_COVER_HISTORY_KEY, JSON.stringify(normalizeIdList(values)))
-  } catch {
-    // Ignore local storage write failures and keep the current session working.
-  }
 }
 
 function mergeTagWallItems(previousItems, nextItems) {
@@ -240,7 +219,6 @@ export default {
       loadingMore: false,
       loadError: '',
       requestController: null,
-      coverHistoryIds: [],
       wallViewportWidth: 0,
       wallViewportHeight: 0,
       wallViewportScrollTop: 0,
@@ -358,7 +336,6 @@ export default {
     },
   },
   created() {
-    this.coverHistoryIds = readCoverHistory()
     this.refreshHomePage()
     window.addEventListener('library-refreshed', this.onLibraryRefreshed)
   },
@@ -406,27 +383,17 @@ export default {
     resolvedTagCoverPreviewUrl(entry) {
       return this.resolvePreviewUrl(entry?.cover)
     },
-    buildOverviewParams(offset = 0) {
+    buildOverviewParams(offset = 0, excludeImageIds = []) {
       const params = new URLSearchParams()
       params.set('limit', String(HOME_BATCH_SIZE))
       params.set('offset', String(Math.max(0, Number(offset || 0))))
-      for (const imageId of this.collectExcludedCoverIds()) {
+      for (const imageId of normalizeIdList(excludeImageIds)) {
         params.append('exclude_image_ids', String(imageId))
       }
       return params
     },
-    collectExcludedCoverIds() {
-      return normalizeIdList([
-        ...collectCoverIds(this.tagWallItems),
-        ...this.coverHistoryIds,
-      ])
-    },
-    persistRecentCoverIds(newIds) {
-      this.coverHistoryIds = normalizeIdList([
-        ...normalizeIdList(newIds),
-        ...this.coverHistoryIds,
-      ])
-      persistCoverHistory(this.coverHistoryIds)
+    collectCurrentCoverIds() {
+      return collectCoverIds(this.tagWallItems)
     },
     resetCoverRepairState() {
       this.coverRepairQueue = []
@@ -455,7 +422,7 @@ export default {
         this.completionToastTimer = null
       }, 2600)
     },
-    refreshHomePage() {
+    refreshHomePage({ excludeImageIds = [] } = {}) {
       this.wallViewportScrollTop = 0
       this.tagWallItems = []
       this.tagWallTotal = 0
@@ -463,12 +430,15 @@ export default {
       this.loadError = ''
       this.hideCompletionToast()
       this.resetCoverRepairState()
-      this.fetchHomeOverview({ append: false })
+      this.fetchHomeOverview({ append: false, excludeImageIds })
+    },
+    rotateHomePageCovers() {
+      this.refreshHomePage({ excludeImageIds: this.collectCurrentCoverIds() })
     },
     loadMoreTagWall() {
-      this.fetchHomeOverview({ append: true })
+      this.fetchHomeOverview({ append: true, excludeImageIds: this.collectCurrentCoverIds() })
     },
-    async fetchHomeOverview({ append = false } = {}) {
+    async fetchHomeOverview({ append = false, excludeImageIds = [] } = {}) {
       if (append) {
         if (this.loadingInitial || this.loadingMore || !this.hasMoreTagWallItems) {
           return
@@ -488,7 +458,7 @@ export default {
 
       try {
         const offset = append ? this.tagWallItems.length : 0
-        const response = await fetch(`${API_BASE}/api/home/overview?${this.buildOverviewParams(offset).toString()}`, {
+        const response = await fetch(`${API_BASE}/api/home/overview?${this.buildOverviewParams(offset, excludeImageIds).toString()}`, {
           signal: controller.signal,
         })
         if (!response.ok) {
@@ -726,7 +696,6 @@ export default {
  * 维护重点是 /api/home/overview 的展示节奏、本地 exclude_image_ids 轮换策略，以及标签墙的延迟加载与预览修复。
  * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
  */
-
 <style scoped lang="css">
 .top-level-page {
   @apply flex flex-col gap-6;
