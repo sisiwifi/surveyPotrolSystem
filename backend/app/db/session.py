@@ -41,9 +41,10 @@ _DATABASE_NAME_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_-]{0,62}$")
 def _ensure_embedded_runtime_ready() -> None:
     if not EMBEDDED_POSTGRES_ENABLED:
         raise RuntimeError(
-            "本工程仅支持内置 PostgreSQL。"
-            "请保持 database.embedded=true，"
-            "并先运行 build\\repair_embedded_pg.bat 建立内置数据库运行时。"
+            "本工程以内置 PostgreSQL 作为固定运行架构。"
+            "当前运行时配置不是内置模式。"
+            "如果你要在本机恢复项目要求的内置运行时配置，可自行执行 "
+            "build\\repair_embedded_pg.bat。"
         )
 
     required_files = (
@@ -56,10 +57,10 @@ def _ensure_embedded_runtime_ready() -> None:
 
     missing_paths = ", ".join(missing_files)
     raise RuntimeError(
-        "已启用内置 PostgreSQL，但缺少运行时二进制："
+        "当前机器缺少本工程要求的内置 PostgreSQL 运行时："
         f"{missing_paths}。"
-        "请先运行 build\\repair_embedded_pg.bat，"
-        "由修复程序建立本工程要求的内置 PostgreSQL 运行时。"
+        "如果你要在本机补齐该运行时，可自行执行 "
+        "build\\repair_embedded_pg.bat。"
     )
 
 
@@ -72,6 +73,7 @@ def _load_all_models() -> tuple[type, ...]:
     from app.models.image_asset import ImageAsset
     from app.models.photo_geo_link import PhotoGeoLink
     from app.models.photo_location import PhotoLocation
+    from app.models.raster_dataset import RasterDataset
     from app.models.recent_import_operation import RecentImportOperation
     from app.models.tag import Tag
     from app.models.trash_entry import TrashEntry
@@ -90,6 +92,7 @@ def _load_all_models() -> tuple[type, ...]:
         ImageAsset,
         PhotoGeoLink,
         PhotoLocation,
+        RasterDataset,
         RecentImportOperation,
         Tag,
         TrashEntry,

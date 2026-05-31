@@ -13,6 +13,7 @@
 | `dates.py`、`albums.py`、`collections.py`、`trash.py` | `BrowsePage/index.vue` 各类二级契约 | 列表返回结构、详情动作 |
 | `images.py`、`search.py`、`tags.py` | `SearchPage.vue`、`TagOverviewPage.vue`、详情浮层菜单 | 元数据修改、搜索模式、Tag 生命周期 |
 | `system.py`、`cache.py`、`categories.py` | `SettingsPage.vue`、`MapConfigPage.vue`、预览缓存链路 | 配置项、任务轮询、主分类规则 |
+| `raster.py` | `RasterDataPage.vue`、`MapLibreMapFrame.vue` | 栅格路径预检、后台导入任务、数据集列表、XYZ 瓦片输出 |
 | `vector.py` | `VectorDataPage.vue`、`MapLibreMapFrame.vue` | CSV/SHP 导入、数据集列表、GeoJSON 输出 |
 | `common.py`、`schemas.py`、`routes.py` | 全部前端页面 | URL 归一化、字段契约、router 聚合顺序 |
 
@@ -20,7 +21,7 @@
 
 | 层级 | 位置 | 当前职责 |
 | --- | --- | --- |
-| 路由聚合 | `app/api/routes.py` | 注册 `assets`、`auth`、`basic`、`categories`、`dates`、`gallery`、`home`、`albums`、`images`、`collections`、`search`、`system`、`users`、`cache`、`tags`、`trash`、`vector` |
+| 路由聚合 | `app/api/routes.py` | 注册 `assets`、`auth`、`basic`、`categories`、`dates`、`gallery`、`home`、`albums`、`images`、`raster`、`collections`、`search`、`system`、`users`、`cache`、`tags`、`trash`、`vector` |
 | 路由实现 | `app/api/routers/*.py` | 解析请求、校验参数、组织响应、调用服务 |
 | 通用 API 工具 | `app/api/common.py` | 预览 URL 解析、路径归一化、`media_path` 选择、请求级缩略图可用性索引 |
 | 数据模型与 schema | `app/models/*.py`、`app/api/schemas.py` | 定义实体结构、请求体和响应模型 |
@@ -124,7 +125,7 @@
 | `trash.py` | `POST /api/trash/hard-delete` | 彻底删除回收站条目 |
 | `trash.py` | `DELETE /api/trash` | 清空回收站 |
 
-### 2.6 用户与矢量数据
+### 2.6 用户、栅格与矢量数据
 
 | 文件 | 端点 | 当前行为 |
 | --- | --- | --- |
@@ -132,8 +133,20 @@
 | `users.py` | `POST /api/users` | 管理员创建用户；创建后自动补齐用户级目录 |
 | `users.py` | `POST /api/users/{username}/reset-password` | 管理员重置指定用户密码 |
 | `users.py` | `DELETE /api/users/{username}` | 管理员删除用户，并同步清理该用户的目录数据 |
+| `raster.py` | `GET /api/rasters/datasets` | 返回全部栅格数据集摘要，供栅格页与地图页共用 |
+| `raster.py` | `POST /api/rasters/inspect` | 兼容旧上传模式，读取上传栅格文件元数据 |
+| `raster.py` | `POST /api/rasters/inspect-path` | 读取服务端路径上的单个栅格文件元数据 |
+| `raster.py` | `GET /api/rasters/source-browser` | 浏览服务端可访问的栅格源文件路径 |
+| `raster.py` | `POST /api/rasters/import` | 兼容旧同步导入模式，支持上传文件或直接指定服务路径 |
+| `raster.py` | `POST /api/rasters/import-tasks` | 创建后台栅格导入任务，返回任务 id、阶段和进度 |
+| `raster.py` | `GET /api/rasters/import-tasks/{task_id}` | 轮询单个后台栅格导入任务状态 |
+| `raster.py` | `GET /api/rasters/datasets/{public_id}` | 返回单个栅格数据集详情 |
+| `raster.py` | `DELETE /api/rasters/datasets/{public_id}` | 删除栅格数据集和关联文件记录 |
+| `raster.py` | `GET /api/rasters/datasets/{public_id}/tiles/{z}/{x}/{y}.png` | 按 XYZ 瓦片输出窗口化栅格渲染结果 |
 | `vector.py` | `GET /api/vectors/datasets` | 返回全部矢量数据集摘要，供矢量页与地图页共用 |
 | `vector.py` | `POST /api/vectors/import` | 接收 CSV、SHP 组件文件或单个 ZIP，解析并落库 |
+| `vector.py` | `GET /api/vectors/source-browser` | 浏览服务端可访问的 CSV / ZIP / SHP 源路径 |
+| `vector.py` | `POST /api/vectors/import-path` | 直接从服务端路径导入单个 CSV / ZIP / SHP 数据集 |
 | `vector.py` | `GET /api/vectors/datasets/{public_id}` | 返回单个数据集详情 |
 | `vector.py` | `GET /api/vectors/datasets/{public_id}/geojson` | 返回 MapLibre 直接消费的 GeoJSON FeatureCollection |
 | `vector.py` | `PATCH /api/vectors/datasets/{public_id}/style` | 更新数据集与图层基础样式 |
@@ -158,6 +171,9 @@
 | `services/tag_match_service.py` | 文件名分词、Tag 匹配、Tag 排序、`last_used_at` 与 `usage_count` 更新 |
 | `services/collection_service.py` | 收藏夹创建/查找、候选列表、增删图片、封面选择、统计刷新 |
 | `services/cover_service.py` | 相册/收藏手动封面 payload 读写 |
+| `services/raster_service.py` | 栅格路径预检、导入、金字塔/透明模式处理与 XYZ 瓦片渲染 |
+| `services/raster_task_service.py` | 栅格后台任务创建、进度更新、状态轮询与用户上下文恢复 |
+| `services/source_browser_service.py` | 统一的服务端路径浏览能力，供 raster/vector 路由复用 |
 | `services/vector_service.py` | CSV / SHP 解析、坐标系处理、矢量数据集写库、GeoJSON 输出与样式更新 |
 | `services/visible_album_service.py` | 依据当前可见图片推导相册可见性、封面与计数 |
 | `services/trash_service.py` | 回收站列表、移入、还原、硬删除、清空、对账 |
@@ -335,7 +351,7 @@
 - 回收站恢复会复用导入/刷新链路重建数据库和相册统计。
 - `POST /api/trash/reconcile` 用于进入回收站后的轻量对账与预览修复，不替代完整刷新。
 
-### 4.10 登录态、地图配置与矢量协议
+### 4.10 登录态、地图配置、栅格与矢量协议
 
 - 当前前端统一使用 Bearer token：
   - `POST /api/auth/login` 获取 token
@@ -348,11 +364,14 @@
   - `tk`
   - `default_center`
   - `default_zoom`
+- `GET /api/vectors/source-browser` 当前用于浏览服务端可访问的 `.csv/.zip/.shp` 路径。
+- `POST /api/vectors/import-path` 当前用于直接从服务端路径导入单个 CSV / ZIP / SHP 数据集。
 - `POST /api/vectors/import` 当前约定：
   - 使用 `multipart/form-data`
   - 字段名为 `files`
   - 可选 `title`
   - 支持单个 CSV、单个 ZIP，或同一次请求上传 SHP 组件文件集合
+- 当前前端页面已经把浏览器上传入口收敛为 CSV / ZIP；SHP 推荐统一走服务路径导入，以便后端自动发现同目录同名侧车文件。
 - 当前业务 CSV 导入要求表头至少包含：
   - `文件夹`
   - `名称`
@@ -366,5 +385,16 @@
 - SHP 导入当前要求：
   - 必须存在 `.prj`
   - 如环境已安装 `pyproj`，优先做完整投影转换
+  - 对地理坐标系会校验导入后 bbox 是否仍在经纬度范围内；若检测到常见经纬度轴序颠倒，会自动交换后再入库
   - 如未安装 `pyproj`，仅放行 WGS84 / CGCS2000 / Web Mercator 常见场景
+- 当 SHP 通过 `POST /api/vectors/import-path` 导入时，后端会自动从同目录收集同名 `.prj/.shx/.dbf` 等侧车文件；因此前端无需再让用户手工逐个补齐组件文件。
+- `GET /api/rasters/source-browser` 当前用于浏览服务端可访问的 `.tif/.tiff/.img/.jp2` 等栅格源路径。
+- `POST /api/rasters/inspect-path` 当前用于在创建任务前预检单个栅格文件元数据；栅格打开失败会返回 `400`，避免前端只看到“fail to fetch”。
+- `POST /api/rasters/import-tasks` 当前是栅格一级页的主入口：
+  - 请求体使用 JSON，包含 `source_path`、`source_mode`、`title`、`generate_pyramid`、`max_zoom`、`transparency_mode`
+  - `source_mode` 当前支持 `import` 与 `load_only`
+  - `generate_pyramid=true` 时：`import` 模式会在库内副本上构建真实概览金字塔，`load_only` 模式只建立服务端瓦片缓存，不改原文件
+  - 返回任务 id、阶段、进度和后续可轮询状态
+- `GET /api/rasters/import-tasks/{task_id}` 返回单个后台栅格导入任务状态；前端据此展示复制 / 概览构建 / 建档进度。
+- `GET /api/rasters/datasets/{public_id}/tiles/{z}/{x}/{y}.png` 直接输出 MapLibre 可消费的 XYZ 栅格瓦片；地图页只拉取窗口化瓦片，不会把整幅原始栅格文件读入浏览器内存，后端会缓存渲染拉伸统计以降低大影像逐瓦片开销。
 - GeoJSON 输出接口当前直接返回标准 `FeatureCollection`，供 MapLibre 以 URL source 方式加载。

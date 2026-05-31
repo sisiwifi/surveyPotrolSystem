@@ -67,6 +67,7 @@ frontend/
 | `/search/results` | `BrowsePage/index.vue` | 完整搜索结果二级浏览，`browseContract = 'search-results'`，支持复用 `q` 与 `quick_hash` |
 | `/tags` | `TagOverviewPage.vue` | 标签总览与编辑入口，页头固定在主滚动区顶部 |
 | `/maps` | `MapManagementPage.vue` | MapLibre 全屏地图页，加载天地图底图和后端矢量 GeoJSON 图层 |
+| `/rasters` | `RasterDataPage.vue` | 栅格数据一级页，走服务路径预检与后台导入任务，适配超大影像 |
 | `/vectors` | `VectorDataPage.vue` | 矢量数据一级页，导入 CSV / SHP、删除数据集并编辑基础样式 |
 | `/tags/:tagId` | `BrowsePage/index.vue` | 标签二级浏览，`browseContract = 'tag'` |
 | `/gallery` | `GalleryPage.vue` | 图库管理父页，包含导入、刷新、最近导入预览、图库总览预览，`meta.keepAlive = true` |
@@ -179,19 +180,29 @@ frontend/
   - `activePanel = 'tag-filter'`：保留的占位子面板，入口按钮当前仍被注释，不会在用户界面里显示
 - 注意：后端已有 `/api/system/tag-match-setting`，但设置页目前没有实际 UI 去编辑它。
 
-### 4.5.1 `MapManagementPage.vue` 与 `VectorDataPage.vue`
+### 4.5.1 `MapManagementPage.vue`、`RasterDataPage.vue` 与 `VectorDataPage.vue`
 
 - `/maps` 已经切换到 `src/components/map/MapLibreMapFrame.vue`，不再使用原来的 Leaflet 地图容器。
 - `MapLibreMapFrame.vue` 当前直接完成三类职责：
   - 从 `/api/system/map-config` 读取天地图 Key、默认中心点和缩放级别
   - 通过 `src/utils/map/tianditu.js` 统一生成底图模式和瓦片 URL 模板
   - 通过 `src/utils/vectorApi.js` 拉取 `/api/vectors/datasets` 和 `/api/vectors/datasets/{public_id}/geojson`
+  - 通过 `src/utils/rasterApi.js` 拉取栅格数据集，并用 `/api/rasters/datasets/{public_id}/tiles/{z}/{x}/{y}.png` 作为 MapLibre raster source
 - 左侧面板已经支持：
   - 三种底图模式切换
   - 业务图层显隐
-  - 缩放到指定数据集范围
+  - 栅格图层加载、隐藏、移除与状态反馈
+  - 缩放到指定数据集范围，并对旧坏 bbox 的矢量数据提示“删除后重导”
+- 地图页会基于 MapLibre source 事件给栅格卡片显示“未加载 / 加载中 / 已就绪 / 已隐藏 / 加载失败”状态，不会把整幅栅格影像读入浏览器内存。
+- `/rasters` 当前是独立的栅格数据页：
+  - 通过 `ServerPathBrowserDialog.vue` 浏览服务端可访问路径，不再走浏览器大文件上传
+  - 先调用路径预检接口读取元数据，再创建后台导入任务
+  - 任务列表会展示复制 / 概览构建 / 建档阶段、进度百分比和错误信息
+  - 支持“导入构建概览”与“仅加载原路径并建立服务端缓存”两种模式，适配超大影像长期入库或就地挂载测试
 - `/vectors` 当前已从占位页改成真实数据管理页：
-  - 支持导入业务 CSV、SHP 组件文件，或包含单个 SHP 数据集的 ZIP 包
+  - 支持服务路径导入业务 CSV、SHP、ZIP
+  - 浏览器上传入口只保留 CSV / ZIP，SHP 推荐统一走服务路径
+  - 服务端会自动为 SHP 解析同目录同名 `.prj/.shx/.dbf` 等侧车文件，并在导入时校验 bbox、自动纠正常见轴序颠倒
   - 支持删除数据集
   - 支持修改点 / 线 / 面的基础样式并回写到后端
   - 点击“地图查看”会跳到 `/maps?focus=<public_id>`，地图页会自动定位到该数据集
@@ -289,6 +300,7 @@ const API_BASE = 'http://127.0.0.1:8000'
 这类常量目前出现在：
 
 - `src/utils/auth.js`
+- `src/utils/rasterApi.js`
 - `src/utils/vectorApi.js`
 - `src/pages/topLevelPageConvention.js`
 - `src/utils/commonBrowsePage.js`
@@ -302,14 +314,16 @@ const API_BASE = 'http://127.0.0.1:8000'
 
 其中 `HomePage.vue` 已改为复用 `topLevelPageConvention.js` 暴露的共享 `API_BASE`，不再单独维护一份常量。
 
-## 8. 地图与矢量集成状态
+## 8. 地图、栅格与矢量集成状态
 
-地图与矢量页当前已经形成最小可测试闭环：
+地图、栅格与矢量页当前已经形成最小可测试闭环：
 
 - 地图页入口：`src/pages/MapManagementPage.vue`
 - 地图主容器：`src/components/map/MapLibreMapFrame.vue`
+- 栅格数据页：`src/pages/RasterDataPage.vue`
 - 矢量数据页：`src/pages/VectorDataPage.vue`
 - 地图配置：`src/pages/MapConfigPage.vue`
+- 前端栅格 API 封装：`src/utils/rasterApi.js`
 - 前端矢量 API 封装：`src/utils/vectorApi.js`
 
 当前约定如下：
@@ -317,6 +331,9 @@ const API_BASE = 'http://127.0.0.1:8000'
 - 底图仍来自天地图，MapLibre 只负责渲染容器、图层管理和交互。
 - 地图配置优先走 `/api/system/map-config`，本地缓存通过 `src/utils/mapConfig.js` 维护。
 - 矢量图层一律通过后端 `/api/vectors/*` 读取，不在前端直接解析 CSV 或 SHP。
+- 栅格图层一律通过后端 `/api/rasters/*` 提供的 XYZ 瓦片接口读取，不在前端直接读取原始栅格文件。
+- `/rasters` 页已切到“服务路径预检 -> 后台任务 -> 地图按瓦片拉取”的链路，适配超大影像，不再要求浏览器上传。
+- `/vectors` 页的 SHP 已切到服务路径导入，解决浏览器无法自动发现同目录 `.prj` 侧车文件的问题。
 - 当前已验证的导入链路是“业务 CSV -> 后端 vectors API -> PostgreSQL -> `/geojson` -> MapLibre 图层展示”。
 - CSV 导入已经兼容 UTF-8 与 GB18030 / GBK 中文编码文件。
 

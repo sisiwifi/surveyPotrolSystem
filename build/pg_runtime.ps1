@@ -239,14 +239,18 @@ try {
     $snapshot = Get-RuntimeSnapshot
 
     if (-not $snapshot.EmbeddedEnabled) {
-        Write-Host 'This project requires embedded PostgreSQL.'
-        Write-Host 'Run build\repair_embedded_pg.bat to re-enable the embedded runtime configuration.'
+        Write-Host 'This project is built around embedded PostgreSQL.'
+        Write-Host 'The current runtime configuration is not in embedded mode.'
+        Write-Host 'If you want to restore the required embedded runtime configuration on this machine,'
+        Write-Host 'you can run build\repair_embedded_pg.bat and then rerun this command.'
         exit 2
     }
 
     if (-not (Test-RuntimeAvailable -Snapshot $snapshot)) {
-        Write-Host "Embedded PostgreSQL binaries not found under $($snapshot.BinDir)."
-        Write-Host 'Run build\repair_embedded_pg.bat to copy a local PostgreSQL runtime into the project and initialize the embedded cluster.'
+        Write-Host 'Missing embedded PostgreSQL runtime for this project.'
+        Write-Host "Required runtime binaries were not found under $($snapshot.BinDir)."
+        Write-Host 'If you want to provision the embedded runtime on this machine,'
+        Write-Host 'you can run build\repair_embedded_pg.bat and then rerun this command.'
         exit 2
     }
 

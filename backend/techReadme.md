@@ -26,7 +26,7 @@
 
 - Web 框架：FastAPI
 - ORM：SQLModel / SQLAlchemy
-- 数据库：PostgreSQL（统一主库，启动时自动建库）
+- 数据库：内置 PostgreSQL（项目自持主库，启动时自动建库）
 - 空间扩展：PostGIS（可选；存在则自动启用，不存在时回退为 JSON 几何存储）
 - 多媒体处理：OpenCV、numpy
 - 开发服务器：Uvicorn
@@ -48,15 +48,15 @@
 | `MEDIA_DIR` | `media` |
 | `TRASH_DIR` | `trash` |
 | `RUNTIME_CONFIG_PATH` | `backend/runtime_config.json` |
-| `DATABASE_URL` | 默认指向 `postgresql+psycopg://postgres:postgres123@127.0.0.1:5432/survey_potrol_system` |
-| `DATABASE_ADMIN_URL` | 默认指向 `postgresql+psycopg://postgres:postgres123@127.0.0.1:5432/postgres` |
+| `DATABASE_URL` | 按 `backend/runtime_config.json` 当前值动态生成，用于连接项目内置主库 |
+| `DATABASE_ADMIN_URL` | 按 `backend/runtime_config.json` 当前值动态生成，用于连接项目内置管理库 |
 | `POSTGRES_RUNTIME_DIR` | `backend/runtime/postgresql` |
 | `POSTGRES_BIN_DIR` | `backend/runtime/postgresql/bin` |
 | `POSTGRES_CLUSTER_DIR` | `backend/data/postgresql/cluster` |
 | `POSTGRES_LOG_FILE` | `backend/data/postgresql/log/postgresql.log` |
 | `SYSTEM_DB_PATH` / `LEGACY_DB_PATH` | 仅用于兼容清理旧 SQLite 文件 |
 
-模块导入时会自动确保这些目录存在；数据库连接参数现在优先读取 `backend/runtime_config.json`，并继续支持通过 `SURVEY_DB_*` 或 `DATABASE_URL` 覆盖。
+模块导入时会自动确保这些目录存在；项目对外运行契约固定为内置 PostgreSQL，连接参数以 `backend/runtime_config.json` 为准。代码里保留的 `SURVEY_DB_*`、`DATABASE_URL` 等环境变量解析主要用于内部兼容与排查，不代表支持把主库切换为外部 PostgreSQL 实例。
 
 ## 3. 应用启动流程
 
@@ -85,14 +85,15 @@
 7. `home_router`
 8. `albums_router`
 9. `images_router`
-10. `collections_router`
-11. `search_router`
-12. `system_router`
-13. `users_router`
-14. `cache_router`
-15. `tags_router`
-16. `trash_router`
-17. `vector_router`
+10. `raster_router`
+11. `collections_router`
+12. `search_router`
+13. `system_router`
+14. `users_router`
+15. `cache_router`
+16. `tags_router`
+17. `trash_router`
+18. `vector_router`
 
 这意味着当前后端已经包含：
 
@@ -108,6 +109,7 @@
 - 缓存缩略图队列
 - 主分类管理
 - 回收站管理
+- 栅格路径预检、后台导入任务与地图瓦片输出
 - 矢量数据导入、GeoJSON 输出与地图配置
 
 ## 5. 核心子系统
@@ -143,7 +145,7 @@
   - 补齐种子用户和默认主分类
 - `get_system_session()` 与 `get_session()` 仍保留旧调用习惯，以减少服务层连锁改动。
 - `reset_application_state()` 会清空主库、兼容删除旧 SQLite 文件，并重建用户目录、缓存目录与种子数据。
-- 本工程只支持内置 PostgreSQL；如果运行时缺失，`db/session.py` 和 `build/start_project.bat` 都会要求先执行 `build/repair_embedded_pg.bat`。
+- 本工程只支持内置 PostgreSQL；如果运行时缺失，`db/session.py` 和 `build/start_project.bat` 会明确报出“缺少内置 PostgreSQL 运行时”，并把 `build/repair_embedded_pg.bat` 作为可选的本机补齐手段提示给使用者。
 - `build/repair_embedded_pg.ps1` 负责自动发现本机 PostgreSQL 安装、复制 `bin/lib/share` 到 `backend/runtime/postgresql`、强制开启 embedded 模式，并在 `5432` 被占用时改写项目内置库端口。
 - `build/pg_runtime.ps1` 负责内置 PostgreSQL 生命周期控制；它默认假定修复脚本已经建立好运行时与集群。
 
@@ -252,16 +254,34 @@
 
 - `vector_service.py` 当前承担：
   - 业务 CSV 点位文件解析
-  - SHP / ZIP 导入
+  - 浏览器上传的 CSV / ZIP / SHP 组件集合导入
+  - 服务路径下的 CSV / ZIP / SHP 导入
   - `.prj` 坐标系读取与投影转换
   - 数据集、图层、要素三层模型写库
   - GeoJSON FeatureCollection 输出
   - 样式更新与删除
 - 当前 CSV 导入已兼容 UTF-8 与 GB18030 / GBK 编码文件。
-- 当前 SHP 导入要求显式 `.prj`；若未安装 `pyproj`，仅放行常见地理坐标系与 Web Mercator 场景。
+- 当前 SHP 导入要求存在 `.prj`；若走服务路径导入，后端会自动补齐同目录同名 `.prj/.shx/.dbf` 等侧车文件；安装 `pyproj` 后会优先做完整投影转换，并在地理坐标系场景校验 bbox、自动纠正常见轴序颠倒；若未安装 `pyproj`，仅放行常见地理坐标系与 Web Mercator 场景。
 - 数据库存储当前优先保证可落地：
   - PostGIS 可用时尝试启用扩展
   - 几何要素仍以 JSON + bbox 字段为主，避免在当前 Windows / Python 3.14 环境下引入更重的空间依赖
+
+### 5.10 栅格数据子系统
+
+- `raster_service.py` 当前承担：
+  - 服务路径与上传文件两种来源的栅格元数据预检
+  - `import / load_only` 两种导入模式下的数据集建档
+  - 复制超大影像时的进度回调
+  - `import` 模式下的真实概览金字塔构建，以及 `load_only` 模式下的服务端瓦片缓存目录管理
+  - 渲染拉伸统计采样与复用，降低大影像逐瓦片百分位计算开销
+  - XYZ 栅格瓦片窗口化渲染
+- `raster_task_service.py` 当前负责后台导入任务：
+  - 创建任务 id 和初始状态
+  - 在线程中恢复用户上下文并执行导入、概览构建或缓存初始化
+  - 写回阶段、进度、错误信息和最终数据集 id
+- `source_browser_service.py` 是 raster/vector 共用的服务端路径浏览器，负责枚举 Windows 盘符、目录与受限扩展名文件。
+- 当前前端栅格一级页已经统一改为“服务路径预检 -> 后台任务”模式，不再要求浏览器直接上传超大栅格文件；其中 `import` 可在库内副本上构建真实概览，`load_only` 则只建立服务端缓存而不改原文件。
+- 地图页对栅格采用 MapLibre raster source + XYZ 瓦片接口；浏览器只拉取视口所需瓦片，不会把整幅栅格影像加载进前端内存。
 
 ## 6. 数据模型摘要
 
@@ -277,6 +297,7 @@
 | `Collection` | 收藏夹 |
 | `CollectionImage` | 收藏夹与图片关系表 |
 | `TrashEntry` | 回收站条目与恢复所需 payload |
+| `RasterDataset` | 栅格数据集主表，保存来源路径、格式、金字塔模式、透明模式与范围元数据 |
 | `VectorDataset` | 矢量数据集主表，保存来源、范围、样式、格式和元数据 |
 | `VectorLayer` | 数据集下的图层元数据与显示样式 |
 | `VectorFeature` | 实际几何要素、属性 JSON 与 bbox |
@@ -313,3 +334,4 @@ python -m venv ..\.venv
 - 文件名自动打标配置 API 已存在，但前端设置页尚未接入对应 UI；设置页内部虽然保留了 `Tag过滤` 占位子面板结构，但入口按钮当前未开放。
 - 草稿 Tag 属于正常数据库记录，只是通过 `created_by` 被隐藏；调试数据库时要注意区分。
 - 当前地图矢量链路已经按“CSV/SHP -> PostgreSQL -> `/api/vectors/*` -> MapLibre”跑通；其中 CSV 编码已验证 `GB18030` 中文表头场景。
+- 当前栅格链路已经按“服务路径预检 -> 后台导入任务 -> `/api/rasters/*/tiles` -> MapLibre raster source”实现；地图页只展示瓦片加载状态，不在浏览器侧直接解析原始大影像。

@@ -19,6 +19,7 @@ import FavoritesPage from '../pages/FavoritesPage.vue'
 import TagOverviewPage from '../pages/TagOverviewPage.vue'
 import UserManagementPage from '../pages/UserManagementPage.vue'
 import MapManagementPage from '../pages/MapManagementPage.vue'
+import RasterDataPage from '../pages/RasterDataPage.vue'
 import VectorDataPage from '../pages/VectorDataPage.vue'
 
 const routes = [
@@ -59,6 +60,11 @@ const routes = [
     path: '/vectors',
     name: 'vectors',
     component: VectorDataPage
+  },
+  {
+    path: '/rasters',
+    name: 'rasters',
+    component: RasterDataPage
   },
   {
     path: '/tags/:tagId',

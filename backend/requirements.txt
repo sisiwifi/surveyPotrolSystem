@@ -6,5 +6,7 @@ pyshp==2.3.1
 opencv-python==4.10.0.84
 numpy
 Pillow
+rasterio==1.5.0
+pyproj
 python-multipart==0.0.20
 xxhash==3.5.0

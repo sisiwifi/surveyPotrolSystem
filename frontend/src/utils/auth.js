@@ -161,6 +161,20 @@ export function logout(options = {}) {
   }
 }
 
+function appendQueryParamPreservingPath(urlText, key, value) {
+  const text = String(urlText || '')
+  const hashIndex = text.indexOf('#')
+  const beforeHash = hashIndex >= 0 ? text.slice(0, hashIndex) : text
+  const hash = hashIndex >= 0 ? text.slice(hashIndex) : ''
+  const queryIndex = beforeHash.indexOf('?')
+  const base = queryIndex >= 0 ? beforeHash.slice(0, queryIndex) : beforeHash
+  const rawQuery = queryIndex >= 0 ? beforeHash.slice(queryIndex + 1) : ''
+  const searchParams = new URLSearchParams(rawQuery)
+  searchParams.set(key, value)
+  const query = searchParams.toString()
+  return `${base}${query ? `?${query}` : ''}${hash}`
+}
+
 export function buildProtectedAssetUrl(path) {
   if (!path) return ''
   restoreAuthState()
@@ -171,9 +185,7 @@ export function buildProtectedAssetUrl(path) {
 
   if (!authState.token) return normalized
 
-  const url = new URL(normalized)
-  url.searchParams.set('access_token', authState.token)
-  return url.toString()
+  return appendQueryParamPreservingPath(normalized, 'access_token', authState.token)
 }
 
 export function installAuthFetchInterceptor() {

@@ -647,9 +647,118 @@ class VectorImportResponse(BaseModel):
     dataset: VectorDatasetSummary
 
 
+class SourceBrowserEntry(BaseModel):
+    name: str
+    path: str
+    entry_type: str = "file"
+    extension: Optional[str] = None
+    size_bytes: Optional[int] = None
+    modified_at: Optional[str] = None
+
+
+class SourceBrowserResponse(BaseModel):
+    current_path: str = ""
+    parent_path: Optional[str] = None
+    items: List[SourceBrowserEntry] = Field(default_factory=list)
+
+
+class VectorPathImportRequest(BaseModel):
+    source_path: str
+    title: Optional[str] = None
+
+
 class VectorStyleUpdateRequest(BaseModel):
     style_config: dict = Field(default_factory=dict)
 
 
 class VectorDeleteResponse(BaseModel):
+    deleted: int = 0
+
+
+class RasterDatasetSummary(BaseModel):
+    public_id: str
+    title: str
+    description: Optional[str] = None
+    format: str = "unknown"
+    source_filename: Optional[str] = None
+    source_mode: str = "import"
+    source_path: Optional[str] = None
+    stored_path: Optional[str] = None
+    pyramid_mode: str = "none"
+    pyramid_path: Optional[str] = None
+    max_zoom: int = 18
+    import_status: str = "pending"
+    import_error: Optional[str] = None
+    source_crs: Optional[str] = None
+    target_crs: str = "EPSG:3857"
+    band_count: int = 0
+    has_alpha: bool = False
+    nodata_value: Optional[str] = None
+    transparency_mode: str = "preserve"
+    owner_username: Optional[str] = None
+    extent: dict = Field(default_factory=dict)
+    center: List[float] = Field(default_factory=list)
+    resolution: List[float] = Field(default_factory=list)
+    size: List[int] = Field(default_factory=list)
+    metadata: dict = Field(default_factory=dict)
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class RasterDatasetListResponse(BaseModel):
+    items: List[RasterDatasetSummary] = Field(default_factory=list)
+
+
+class RasterInspectItem(BaseModel):
+    source_filename: str
+    title: str
+    format: str = "unknown"
+    source_crs: Optional[str] = None
+    extent: dict = Field(default_factory=dict)
+    center: List[float] = Field(default_factory=list)
+    resolution: List[float] = Field(default_factory=list)
+    size: List[int] = Field(default_factory=list)
+    band_count: int = 0
+    has_alpha: bool = False
+    nodata_value: Optional[str] = None
+    pyramid_mode: str = "none"
+    pyramid_path: Optional[str] = None
+    max_zoom: int = 18
+    suggested_transparency_mode: str = "preserve"
+    metadata: dict = Field(default_factory=dict)
+
+
+class RasterInspectResponse(BaseModel):
+    items: List[RasterInspectItem] = Field(default_factory=list)
+
+
+class RasterPathInspectRequest(BaseModel):
+    source_path: str
+
+
+class RasterImportTaskRequest(BaseModel):
+    source_path: str
+    source_mode: str = "import"
+    title: Optional[str] = None
+    generate_pyramid: bool = False
+    max_zoom: int = 18
+    transparency_mode: str = "auto"
+
+
+class RasterImportTaskStatus(BaseModel):
+    task_id: str
+    status: str = "queued"
+    stage: str = "queued"
+    progress: Optional[float] = None
+    message: str = ""
+    dataset_public_id: Optional[str] = None
+    dataset: Optional[RasterDatasetSummary] = None
+    error: Optional[str] = None
+
+
+class RasterImportResponse(BaseModel):
+    dataset: RasterDatasetSummary
+
+
+class RasterDeleteResponse(BaseModel):
     deleted: int = 0

@@ -39,6 +39,31 @@ export async function importVectorDataset(files, title = '') {
   return payload.dataset
 }
 
+export async function importVectorDatasetFromPath(sourcePath, title = '') {
+  const response = await fetch(`${API_BASE}/api/vectors/import-path`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      source_path: sourcePath,
+      title,
+    }),
+  })
+  if (!response.ok) {
+    throw new Error(await readError(response))
+  }
+  const payload = await response.json()
+  return payload.dataset
+}
+
+export async function browseVectorSources(path = '') {
+  const query = path ? `?path=${encodeURIComponent(path)}` : ''
+  const response = await fetch(`${API_BASE}/api/vectors/source-browser${query}`)
+  if (!response.ok) {
+    throw new Error(await readError(response))
+  }
+  return response.json()
+}
+
 export async function updateVectorDatasetStyle(publicId, styleConfig) {
   const response = await fetch(`${API_BASE}/api/vectors/datasets/${publicId}/style`, {
     method: 'PATCH',

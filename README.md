@@ -1,6 +1,8 @@
 # picTagView
 
-picTagView 是一个本地图片与外业数据管理系统，后端基于 FastAPI + SQLModel + PostgreSQL，前端基于 Vue 3 + Vue CLI，并已切换到 MapLibre GL JS 作为地图主引擎。项目当前支持图片导入、日期与相册浏览、标签管理、收藏夹、搜索、回收站、缩略图缓存、统一鉴权，以及 SHP / CSV 矢量数据导入与地图展示。
+picTagView 是一个本地图片与外业数据管理系统，后端基于 FastAPI + SQLModel + PostgreSQL，前端基于 Vue 3 + Vue CLI，并已切换到 MapLibre GL JS 作为地图主引擎。项目当前支持图片导入、日期与相册浏览、标签管理、收藏夹、搜索、回收站、缩略图缓存、统一鉴权，以及 SHP / CSV 矢量数据、超大栅格影像的导入与地图展示。
+
+本项目以内置 PostgreSQL 作为固定运行架构，数据库运行时属于项目本体的一部分，而不是部署时再选择的可替换组件。是否已经在当前机器建立好这套内置运行时，只是部署状态问题，不是数据库类型选择问题。
 
 本文档重点说明：**如何在完全空的工程拉取后，从零开始安装依赖并启动整个项目**。
 
@@ -22,7 +24,8 @@ picTagView 是一个本地图片与外业数据管理系统，后端基于 FastA
 
 - 统一数据库已经从多 SQLite 切到单一 PostgreSQL 主库，默认库名为 `survey_potrol_system`。
 - 前端地图页已经从 Leaflet 切到 MapLibre，底图仍使用天地图配置，但矢量图层展示改走后端 GeoJSON 接口。
-- `/vectors` 页面已经可以直接导入业务 CSV 和 SHP 数据集，并在 `/maps` 页面联动查看。
+- `/vectors` 页面已支持服务路径导入 SHP / CSV / ZIP；其中 SHP 会由服务端自动补齐同目录同名 `.prj/.shx/.dbf` 等侧车文件，并在导入时校验经纬度范围、自动纠正常见轴序颠倒；旧错误数据需删除后重导，浏览器上传入口则收敛为 CSV / ZIP。
+- `/rasters` 页面已切到服务路径预检 + 后台任务导入模式，浏览器不再直接上传超大栅格影像；导入模式可在库内副本上构建真实概览金字塔，`load_only` 可选服务端瓦片缓存，地图页会反馈栅格“加载中 / 已就绪 / 加载失败”状态。
 - 前端路由守卫已改为进入受保护页面前先调用 `/api/auth/me` 验证登录态。
 - 默认测试账号会在后端初始化时自动创建：`admin / 123456`、`guest / qwerty`。
 
@@ -40,7 +43,7 @@ picTagView 是一个本地图片与外业数据管理系统，后端基于 FastA
 
 - 后端与启动脚本会读取 `backend/runtime_config.json`
 - 本工程只支持内置 PostgreSQL；`build/start_project.bat` 启动前会检查 `backend/runtime/postgresql/bin` 是否完整
-- 当前仓库**尚未直接附带** PostgreSQL / PostGIS 二进制；第一次在新机器上运行时，需要先执行 `build\repair_embedded_pg.bat`
+- 当前仓库**尚未直接附带** PostgreSQL / PostGIS 二进制；如果当前机器缺少项目所需的内置运行时，启动脚本会明确报出“缺少内置 PostgreSQL 运行时”
 - 修复脚本会自动发现本机 PostgreSQL 安装并复制到项目运行时目录；如果 `5432` 已被占用，会自动把内置库改到空闲端口
 
 建议使用 PowerShell 或命令提示符执行下面的命令。
@@ -80,15 +83,13 @@ python -m pip install --upgrade pip
 python -m pip install -r backend\requirements.txt
 ```
 
-后端依赖装完后，请确认运行时配置正确。当前默认连接参数会优先从 `backend/runtime_config.json` 读取，也可通过环境变量覆盖：
+当前 `backend/requirements.txt` 已固定 `rasterio==1.5.0`，用于兼容 Windows 上的 Python 3.14 环境；不要回退到 `1.4.3`，否则会再次遇到缺少可用 wheel 的安装失败问题。
 
-- `SURVEY_DB_HOST=127.0.0.1`
-- `SURVEY_DB_PORT=5432`
-- `SURVEY_DB_USER=postgres`
-- `SURVEY_DB_PASSWORD=postgres123`
-- `SURVEY_DB_NAME=survey_potrol_system`
+后端依赖装完后，请确认 `backend/runtime_config.json` 可用。该文件定义项目内置 PostgreSQL 的主机、端口、运行时目录和集群目录；当前仓库中的默认值是 `127.0.0.1:55432`，但修复脚本会在端口冲突时自动回写新的空闲端口。
 
-本工程必须使用内置 PostgreSQL。第一次在新机器上运行时，先执行：
+代码内部仍保留 `SURVEY_DB_*` 与 `DATABASE_URL` 的解析兼容入口，用于配置装载和排查场景；它们属于实现细节，不构成“可切换为外部 PostgreSQL” 的项目运行模式。
+
+本工程必须使用内置 PostgreSQL。如果当前机器还没有建立这套运行时，可自行执行：
 
 ```powershell
 build\repair_embedded_pg.bat
@@ -141,14 +142,14 @@ build\start_project.bat
 
 1. 读取 `backend/runtime_config.json` 中的后端与数据库运行时配置
 2. 先执行一次旧实例清理，关闭上次残留的后端 / 前端窗口，并尝试停止内置 PostgreSQL
-3. 检查内置 PostgreSQL 运行时；如果缺失，则明确提示先运行 `build\repair_embedded_pg.bat`
+3. 检查内置 PostgreSQL 运行时；如果缺失，则明确提示当前机器缺少项目要求的内置 PostgreSQL 运行时，并给出可选的补齐方式
 4. 检查当前终端是否是管理员权限；如果是，只把内置 PostgreSQL 启动步骤转发到标准用户会话，再回到当前会话继续拉起后端和前端
 5. 调用 `build/pg_runtime.ps1 start` 启动 `backend/runtime/postgresql/bin` 下的内置 PostgreSQL
 6. 使用根目录 `.venv` 按配置端口启动后端 `uvicorn app.main:app --reload`
 7. 检查后端是否能响应当前配置端口
 8. 在前端目录执行 `npm run serve`，并把 `VUE_APP_API_BASE` 注入为当前后端地址
 
-如果当前还没有建立内置 PostgreSQL 运行时，启动脚本会直接要求先执行 `build\repair_embedded_pg.bat`；修复完成后，再重新运行 `build\start_project.bat`。
+如果当前还没有建立内置 PostgreSQL 运行时，启动脚本会直接以“缺少内置 PostgreSQL 运行时”的前置错误退出；如果你决定在当前机器补齐该运行时，可执行 `build\repair_embedded_pg.bat`，完成后再重新运行 `build\start_project.bat`。
 
 后端首次启动会自动完成以下动作：
 
@@ -261,11 +262,13 @@ build\stop_project.bat
 
 后端默认占用 `8000`，前端默认占用 `8080`。如果提示端口冲突，先关闭占用这两个端口的旧进程，再重新启动。
 
-如果 `5432` 已被系统 PostgreSQL 占用，请重新执行 `build\repair_embedded_pg.bat`。修复脚本会为项目内置数据库选择一个空闲端口，并把结果回写到 `backend/runtime_config.json`。
+如果项目内置 PostgreSQL 当前配置端口已被其他进程占用，可以自行执行 `build\repair_embedded_pg.bat`。修复脚本会为项目内置数据库选择一个空闲端口，并把结果回写到 `backend/runtime_config.json`。
 
 ### 7.6 找不到内置 PostgreSQL 运行时
 
-如果启动脚本提示找不到 `backend/runtime/postgresql/bin`，说明当前机器还没有建立好项目内置数据库运行时。先执行：
+如果启动脚本提示找不到 `backend/runtime/postgresql/bin`，说明当前机器还没有建立好项目所需的内置 PostgreSQL 运行时。这不是数据库类型选择问题，而是当前机器尚未补齐项目固定运行架构所需的数据库运行时。
+
+如果你准备在本机补齐这套运行时，可以执行：
 
 ```powershell
 build\repair_embedded_pg.bat
@@ -314,11 +317,16 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r backend\requirements.txt
-build\repair_embedded_pg.bat
 cd frontend
 npm install
 cd ..
 build\start_project.bat
+```
+
+如果在这台机器上尚未建立项目内置 PostgreSQL 运行时，可以在安装后端依赖后，自行补一条：
+
+```powershell
+build\repair_embedded_pg.bat
 ```
 
 如果不想使用批处理脚本，也可以在两个终端里分别运行后端和前端命令。
@@ -330,7 +338,7 @@ build\start_project.bat
 - 前端会从启动脚本注入的 `VUE_APP_API_BASE` 读取后端地址；如果你直接单独启动前端，默认仍回退到 `http://127.0.0.1:8000`
 - PostgreSQL 数据库、种子账号和运行目录会在后端首次启动时自动初始化
 - 项目级运行时配置文件是 `backend/runtime_config.json`
-- 如果当前机器还没有建立内置 PostgreSQL 运行时，先执行 `build\repair_embedded_pg.bat`
+- 如果当前机器报出“缺少内置 PostgreSQL 运行时”，而你准备在本机补齐该运行时，可自行执行 `build\repair_embedded_pg.bat`
 - 内置 PostgreSQL 建好后，可以用 `build\pg_runtime.ps1` 管理它
 
 如果你只是想快速验证项目能跑起来，优先执行 `build\start_project.bat`。

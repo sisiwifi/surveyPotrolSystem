@@ -14,6 +14,7 @@ export const TOP_LEVEL_NAV_ITEMS = Object.freeze([
   { path: '/search', label: '搜索', icon: '🔎', matchPrefixes: ['/search/results'] },
   { path: '/maps', label: '地图管理', icon: '🗺️' },
   { path: '/vectors', label: '矢量数据', icon: '📐' },
+  { path: '/rasters', label: '栅格数据', icon: '🛰️' },
   { path: '/tags', label: '标签总览', icon: '🏷️', matchPrefixes: ['/tags/'] },
   { path: '/gallery', label: '图库管理', icon: '🖼️', matchPrefixes: ['/gallery/'] },
   { path: '/calendar', label: '日期视图', icon: '📅', matchPrefixes: ['/calendar/'] },

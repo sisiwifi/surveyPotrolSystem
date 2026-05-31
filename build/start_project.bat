@@ -25,8 +25,10 @@ echo Cleaning previous project processes...
 call "%~dp0stop_project.bat" >nul 2>&1
 
 if /I not "%SURVEY_EMBEDDED_POSTGRES_ENABLED%"=="1" (
-  echo This project requires embedded PostgreSQL.
-  echo Run build\repair_embedded_pg.bat to restore the embedded runtime configuration, then rerun build\start_project.bat.
+  echo This project is built around embedded PostgreSQL.
+  echo The current runtime configuration is not in embedded mode.
+  echo If you want to restore the required embedded runtime configuration on this machine,
+  echo you can run build\repair_embedded_pg.bat and then rerun build\start_project.bat.
   exit /b 2
 )
 
@@ -61,8 +63,10 @@ exit /b 0
 
 :ensure_embedded_runtime
 if exist "%SURVEY_POSTGRES_BIN_DIR%\pg_ctl.exe" if exist "%SURVEY_POSTGRES_BIN_DIR%\initdb.exe" exit /b 0
-echo Embedded PostgreSQL is enabled, but runtime binaries are missing under %SURVEY_POSTGRES_BIN_DIR%.
-echo Run build\repair_embedded_pg.bat to copy a local PostgreSQL runtime into the project and initialize the embedded cluster.
+echo Missing embedded PostgreSQL runtime for this project.
+echo Required runtime binaries were not found under %SURVEY_POSTGRES_BIN_DIR%.
+echo If you want to provision the embedded runtime on this machine,
+echo you can run build\repair_embedded_pg.bat and then rerun build\start_project.bat.
 exit /b 2
 
 :start_embedded_runtime

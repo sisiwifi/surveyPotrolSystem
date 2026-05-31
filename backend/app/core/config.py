@@ -196,6 +196,12 @@ def get_user_cache_dir(username: str) -> Path:
 	return cache_dir
 
 
+def get_user_grid_dir(username: str) -> Path:
+	grid_dir = get_user_data_dir(username) / "grid"
+	grid_dir.mkdir(parents=True, exist_ok=True)
+	return grid_dir
+
+
 def get_user_temp_dir(username: str) -> Path:
 	temp_dir = TEMP_ROOT_DIR / username
 	temp_dir.mkdir(parents=True, exist_ok=True)
@@ -217,6 +223,7 @@ def get_user_trash_dir(username: str) -> Path:
 def ensure_user_storage_dirs(username: str) -> None:
 	get_user_data_dir(username)
 	get_user_cache_dir(username)
+	get_user_grid_dir(username)
 	get_user_temp_dir(username)
 	get_user_media_dir(username)
 	get_user_trash_dir(username)
@@ -232,6 +239,10 @@ def get_current_user_settings_path() -> Path:
 
 def get_current_user_cache_dir() -> Path:
 	return get_user_cache_dir(require_current_username())
+
+
+def get_current_user_grid_dir() -> Path:
+	return get_user_grid_dir(require_current_username())
 
 
 def get_current_user_temp_dir() -> Path:
@@ -277,6 +288,7 @@ def resolve_user_scoped_path(stored_path: str | os.PathLike | None, *, username:
 			("media", get_user_media_dir),
 			("trash", get_user_trash_dir),
 			("cache", get_user_cache_dir),
+			("grid", get_user_grid_dir),
 			("temp", get_user_temp_dir),
 		):
 			suffix = _resolve_virtual_suffix(normalized_path, prefix)
@@ -311,6 +323,7 @@ def to_user_scoped_relative(path: Path, *, username: str | None = None) -> str:
 			("media", get_user_media_dir(active_username)),
 			("trash", get_user_trash_dir(active_username)),
 			("cache", get_user_cache_dir(active_username)),
+			("grid", get_user_grid_dir(active_username)),
 			("temp", get_user_temp_dir(active_username)),
 		):
 			virtual_path = _to_virtual_path_from_root(resolved_path, root_path, prefix, strip_segments=0)
@@ -321,6 +334,7 @@ def to_user_scoped_relative(path: Path, *, username: str | None = None) -> str:
 		("media", MEDIA_ROOT_DIR, 1),
 		("trash", TRASH_ROOT_DIR, 1),
 		("cache", USERS_DATA_DIR, 2),
+		("grid", USERS_DATA_DIR, 2),
 		("temp", TEMP_ROOT_DIR, 1),
 	):
 		virtual_path = _to_virtual_path_from_root(
@@ -341,5 +355,6 @@ def to_user_scoped_relative(path: Path, *, username: str | None = None) -> str:
 MEDIA_DIR = DynamicPath(get_current_user_media_dir, "MEDIA_DIR")
 TRASH_DIR = DynamicPath(get_current_user_trash_dir, "TRASH_DIR")
 CACHE_DIR = DynamicPath(get_current_user_cache_dir, "CACHE_DIR")
+GRID_DIR = DynamicPath(get_current_user_grid_dir, "GRID_DIR")
 TEMP_DIR = DynamicPath(get_current_user_temp_dir, "TEMP_DIR")
 DB_PATH = DynamicPath(get_current_user_db_path, "DB_PATH")

@@ -5,8 +5,11 @@
       subtitle="导入 SHP 与业务 CSV 点位文件，统一管理样式并联动地图页。"
     >
       <div class="vector-page-actions">
-        <button class="vector-page-btn vector-page-btn--primary" type="button" :disabled="busy" @click="openFilePicker">
-          {{ busy ? '导入中…' : '导入 SHP / CSV' }}
+        <button class="vector-page-btn vector-page-btn--primary" type="button" :disabled="busy" @click="openPathBrowser">
+          {{ busy ? '导入中…' : '服务路径导入' }}
+        </button>
+        <button class="vector-page-btn" type="button" :disabled="busy" @click="openFilePicker">
+          浏览器上传 CSV / ZIP
         </button>
         <button class="vector-page-btn" type="button" :disabled="busy || loading" @click="refreshDatasets">
           刷新列表
@@ -18,7 +21,7 @@
       ref="fileInput"
       class="vector-page-hidden-input"
       type="file"
-      accept=".csv,.zip,.shp,.shx,.dbf,.prj,.cpg"
+      accept=".csv,.zip"
       multiple
       @change="handleFileChange"
     >
@@ -27,10 +30,11 @@
       <div class="vector-data-shell__intro">
         <article class="vector-intro-card">
           <h3>导入说明</h3>
-          <p>支持当前业务 CSV 点位格式，以及 SHP 组件文件或包含单个 SHP 数据集的 ZIP 包。</p>
+          <p>支持业务 CSV 点位文件，以及 SHP / ZIP 的服务路径导入。SHP 现在会由服务端自动寻找同目录同名侧车文件。</p>
           <ul>
-            <li>CSV 会直接按表头解析成点图层。</li>
-            <li>SHP 需要带 .prj 坐标系文件；缺失时后端会直接报错。</li>
+            <li>CSV 可继续通过浏览器上传，或直接走服务路径导入。</li>
+            <li>SHP 建议使用“服务路径导入”，后端会自动读取同目录的 .prj/.shx/.dbf 等侧车文件。</li>
+            <li>ZIP 仍可通过浏览器上传，或直接走服务路径导入。</li>
             <li>导入完成后会同步出现在地图管理页的业务图层面板中。</li>
           </ul>
         </article>
@@ -57,7 +61,7 @@
       <div v-if="errorText" class="vector-feedback vector-feedback--error">{{ errorText }}</div>
 
       <div v-if="!datasets.length && !loading" class="vector-empty-state">
-        还没有导入任何矢量数据。点击上方按钮加入 SHP 或 CSV 文件开始测试。
+        还没有导入任何矢量数据。点击上方按钮通过服务路径导入 SHP，或上传 CSV / ZIP 开始测试。
       </div>
 
       <div v-else class="vector-dataset-grid">
@@ -125,7 +129,19 @@
     <ActionProgressOverlay
       :visible="busy"
       title="正在处理矢量导入"
-      message="后端会解析坐标系、生成图层元数据并写入统一主库。"
+      message="后端会解析坐标系、自动识别 SHP 同目录侧车文件，并写入统一主库。"
+    />
+
+    <ServerPathBrowserDialog
+      :visible="pathBrowserOpen"
+      title="浏览矢量源路径"
+      subtitle="选择服务端可访问的 SHP / CSV / ZIP 文件。SHP 会自动匹配同目录的 .prj/.shx/.dbf。"
+      hint="如果要导入单个 SHP，请直接选 .shp 文件即可，系统会由服务端补齐同名侧车文件。"
+      confirm-label="开始导入"
+      selection-mode="single"
+      :loader="loadVectorBrowser"
+      @close="pathBrowserOpen = false"
+      @confirm="handlePathBrowserConfirm"
     />
   </section>
 </template>
@@ -137,10 +153,13 @@
  * 相关文档：frontend/Frontend_README.md、backend/api_services.md。
  */
 import ActionProgressOverlay from '../components/ActionProgressOverlay.vue'
+import ServerPathBrowserDialog from '../components/ServerPathBrowserDialog.vue'
 import TopLevelPageHeader from './TopLevelPageHeader.vue'
 import {
+  browseVectorSources,
   deleteVectorDataset,
   importVectorDataset,
+  importVectorDatasetFromPath,
   listVectorDatasets,
   updateVectorDatasetStyle,
 } from '../utils/vectorApi'
@@ -173,6 +192,7 @@ export default {
   name: 'VectorDataPage',
   components: {
     ActionProgressOverlay,
+    ServerPathBrowserDialog,
     TopLevelPageHeader,
   },
   data() {
@@ -182,6 +202,7 @@ export default {
       busy: false,
       errorText: '',
       editingStyles: {},
+      pathBrowserOpen: false,
     }
   },
   computed: {
@@ -214,6 +235,12 @@ export default {
     openFilePicker() {
       this.$refs.fileInput?.click()
     },
+    openPathBrowser() {
+      this.pathBrowserOpen = true
+    },
+    loadVectorBrowser(path = '') {
+      return browseVectorSources(path)
+    },
     async refreshDatasets() {
       this.loading = true
       this.errorText = ''
@@ -241,6 +268,23 @@ export default {
       this.errorText = ''
       try {
         await importVectorDataset(files)
+        await this.refreshDatasets()
+      } catch (error) {
+        this.errorText = error instanceof Error ? error.message : '矢量导入失败'
+      } finally {
+        this.busy = false
+      }
+    },
+    async handlePathBrowserConfirm(sourcePath) {
+      this.pathBrowserOpen = false
+      if (!sourcePath) {
+        return
+      }
+
+      this.busy = true
+      this.errorText = ''
+      try {
+        await importVectorDatasetFromPath(sourcePath)
         await this.refreshDatasets()
       } catch (error) {
         this.errorText = error instanceof Error ? error.message : '矢量导入失败'

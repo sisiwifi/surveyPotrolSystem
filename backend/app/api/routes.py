@@ -21,6 +21,7 @@ from app.api.routers import (
     gallery_router,
     home_router,
     images_router,
+    raster_router,
     search_router,
     system_router,
     tags_router,
@@ -39,6 +40,7 @@ router.include_router(gallery_router)
 router.include_router(home_router)
 router.include_router(albums_router)
 router.include_router(images_router)
+router.include_router(raster_router)
 router.include_router(collections_router)
 router.include_router(search_router)
 router.include_router(system_router)

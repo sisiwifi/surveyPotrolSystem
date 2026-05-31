@@ -18,6 +18,7 @@ from app.api.routers.dates import router as dates_router
 from app.api.routers.gallery import router as gallery_router
 from app.api.routers.home import router as home_router
 from app.api.routers.images import router as images_router
+from app.api.routers.raster import router as raster_router
 from app.api.routers.search import router as search_router
 from app.api.routers.system import router as system_router
 from app.api.routers.tags import router as tags_router
@@ -37,6 +38,7 @@ __all__ = [
     "gallery_router",
     "home_router",
     "images_router",
+    "raster_router",
     "search_router",
     "system_router",
     "tags_router",

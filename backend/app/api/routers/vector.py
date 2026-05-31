@@ -11,10 +11,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.api.deps import AuthenticatedUser, get_current_user
 from app.api.schemas import (
+    SourceBrowserEntry,
+    SourceBrowserResponse,
     VectorDatasetListResponse,
     VectorDatasetSummary,
     VectorDeleteResponse,
     VectorImportResponse,
+    VectorPathImportRequest,
     VectorStyleUpdateRequest,
 )
 from app.db.session import get_session
@@ -24,9 +27,13 @@ from app.services.vector_service import (
     get_vector_dataset_geojson,
     get_vector_dataset_summary,
     import_vector_dataset,
+    import_vector_dataset_from_source_path,
     list_vector_datasets,
     update_vector_dataset_style,
 )
+from app.services.source_browser_service import browse_source_entries
+
+VECTOR_ALLOWED_EXTENSIONS = {".csv", ".zip", ".shp"}
 
 router = APIRouter(prefix="/api/vectors", tags=["vectors"])
 
@@ -57,7 +64,40 @@ async def import_dataset(
             dataset = import_vector_dataset(session, uploaded_files, title_override=title)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    return VectorImportResponse(dataset=VectorDatasetSummary(**dataset))
+
+
+@router.get("/source-browser", response_model=SourceBrowserResponse)
+def source_browser(
+    path: str | None = None,
+    _current_user: AuthenticatedUser = Depends(get_current_user),
+) -> SourceBrowserResponse:
+    try:
+        payload = browse_source_entries(path, allowed_extensions=VECTOR_ALLOWED_EXTENSIONS)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    return SourceBrowserResponse(
+        current_path=str(payload.get("current_path") or ""),
+        parent_path=payload.get("parent_path"),
+        items=[SourceBrowserEntry(**item) for item in list(payload.get("items") or [])],
+    )
+
+
+@router.post("/import-path", response_model=VectorImportResponse, status_code=201)
+def import_dataset_from_path(
+    body: VectorPathImportRequest,
+    _current_user: AuthenticatedUser = Depends(get_current_user),
+) -> VectorImportResponse:
+    try:
+        with get_session() as session:
+            dataset = import_vector_dataset_from_source_path(session, body.source_path, title_override=body.title)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return VectorImportResponse(dataset=VectorDatasetSummary(**dataset))
 
 

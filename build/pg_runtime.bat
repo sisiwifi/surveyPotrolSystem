@@ -21,7 +21,10 @@ for /f "usebackq delims=" %%I in ("%RUNTIME_PROBE_OUTPUT%") do set "%%I"
 if exist "%RUNTIME_PROBE_OUTPUT%" del /q "%RUNTIME_PROBE_OUTPUT%" >nul 2>&1
 
 if /I not "%SURVEY_EMBEDDED_POSTGRES_ENABLED%"=="1" (
-	echo This project requires embedded PostgreSQL.
+	echo This project is built around embedded PostgreSQL.
+	echo The current runtime configuration is not in embedded mode.
+	echo If you want to restore the required embedded runtime configuration on this machine,
+	echo you can run build\repair_embedded_pg.bat and then rerun this command.
 	exit /b 2
 )
 
@@ -30,7 +33,10 @@ if /I "%ACTION%"=="reset" goto delegate_to_powershell
 if /I "%ACTION%"=="restart" goto delegate_to_powershell
 
 if not exist "%SURVEY_POSTGRES_BIN_DIR%\pg_ctl.exe" (
-	echo Embedded PostgreSQL binaries not found under %SURVEY_POSTGRES_BIN_DIR%.
+	echo Missing embedded PostgreSQL runtime for this project.
+	echo Required runtime binaries were not found under %SURVEY_POSTGRES_BIN_DIR%.
+	echo If you want to provision the embedded runtime on this machine,
+	echo you can run build\repair_embedded_pg.bat and then rerun this command.
 	exit /b 2
 )
 

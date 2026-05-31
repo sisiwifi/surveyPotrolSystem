@@ -2,6 +2,7 @@
 
 主要职责：
 - 支持任意 SHP 与当前业务 CSV 点位格式导入。
+- 在 SHP 导入阶段完成坐标系识别、投影转换与必要的轴序纠偏。
 - 统一生成数据集、图层、要素、样式和 GeoJSON 预览数据，供地图页与矢量页共用。
 """
 
@@ -24,9 +25,11 @@ from sqlmodel import Session, select
 
 try:
     from pyproj import CRS, Transformer
+    from pyproj.exceptions import CRSError
 except Exception:  # pragma: no cover - optional dependency on Python 3.14
     CRS = None
     Transformer = None
+    CRSError = None
 
 from app.core.config import get_current_username
 from app.models.vector_dataset import VectorDataset
@@ -195,6 +198,36 @@ def _compute_bbox(geometry: dict[str, Any] | None) -> tuple[float, float, float,
     return (min(xs), min(ys), max(xs), max(ys))
 
 
+def _bbox_is_lon_lat(bbox: tuple[float, float, float, float] | None) -> bool:
+    if bbox is None:
+        return True
+    min_x, min_y, max_x, max_y = bbox
+    return all(
+        [
+            -180.0 <= float(min_x) <= 180.0,
+            -180.0 <= float(max_x) <= 180.0,
+            -90.0 <= float(min_y) <= 90.0,
+            -90.0 <= float(max_y) <= 90.0,
+        ]
+    )
+
+
+def _swap_geometry_xy(geometry: dict[str, Any]) -> dict[str, Any]:
+    def swap_coordinates(raw_value: Any) -> Any:
+        if not isinstance(raw_value, (list, tuple)) or not raw_value:
+            return raw_value
+        first = raw_value[0]
+        if isinstance(first, (int, float)) and len(raw_value) >= 2:
+            extras = list(raw_value[2:])
+            return [float(raw_value[1]), float(raw_value[0]), *extras]
+        return [swap_coordinates(item) for item in raw_value]
+
+    return {
+        "type": geometry.get("type"),
+        "coordinates": swap_coordinates(geometry.get("coordinates")),
+    }
+
+
 def _extent_from_features(features: list[ParsedFeature]) -> dict[str, Any]:
     bboxes = [feature.bbox for feature in features if feature.bbox is not None]
     if not bboxes:
@@ -250,7 +283,21 @@ def _build_csv_dataset(files: list[UploadedVectorFile], title_override: str | No
         raise ValueError("CSV 导入一次只支持一个文件")
 
     file_item = files[0]
-    text = _decode_text_content(file_item.content)
+    return _build_csv_dataset_from_text(
+        _decode_text_content(file_item.content),
+        source_filename=file_item.filename,
+        file_size=len(file_item.content),
+        title_override=title_override,
+    )
+
+
+def _build_csv_dataset_from_text(
+    text: str,
+    *,
+    source_filename: str,
+    file_size: int,
+    title_override: str | None = None,
+) -> ParsedDataset:
     reader = csv.DictReader(io.StringIO(text))
     if not reader.fieldnames:
         raise ValueError("CSV 缺少表头")
@@ -292,14 +339,14 @@ def _build_csv_dataset(files: list[UploadedVectorFile], title_override: str | No
     label_field = "name"
     style_config = default_style_for_geometry("Point", label_field)
     return ParsedDataset(
-        title=title_override or Path(file_item.filename).stem,
+        title=title_override or Path(source_filename).stem,
         description="由业务点位 CSV 导入的点图层。",
         format="csv",
-        source_filename=file_item.filename,
+        source_filename=source_filename,
         source_crs="EPSG:4326",
         target_crs="EPSG:4326",
         geometry_type="Point",
-        file_group=[{"name": file_item.filename, "size": len(file_item.content)}],
+        file_group=[{"name": source_filename, "size": file_size}],
         extent=_extent_from_features(features),
         style_config=style_config,
         metadata={
@@ -308,6 +355,18 @@ def _build_csv_dataset(files: list[UploadedVectorFile], title_override: str | No
         },
         features=features,
         label_field=label_field,
+    )
+
+
+def _build_csv_dataset_from_path(source_path: Path, title_override: str | None = None) -> ParsedDataset:
+    if not source_path.exists() or not source_path.is_file():
+        raise ValueError("指定的 CSV 源文件不存在")
+    raw_bytes = source_path.read_bytes()
+    return _build_csv_dataset_from_text(
+        _decode_text_content(raw_bytes),
+        source_filename=source_path.name,
+        file_size=int(source_path.stat().st_size),
+        title_override=title_override,
     )
 
 
@@ -335,26 +394,59 @@ def _collect_shp_files(files: list[UploadedVectorFile], work_dir: Path) -> tuple
     return shp_path, prj_path, file_group
 
 
-def _build_transformer_from_prj(prj_path: Path) -> tuple[str | None, Transformer | None]:
+def _collect_shp_source_path(source_path: Path, work_dir: Path) -> tuple[Path, Path, list[dict[str, Any]]]:
+    if not source_path.exists() or not source_path.is_file():
+        raise ValueError("指定的矢量源文件不存在")
+
+    suffix = source_path.suffix.lower()
+    if suffix == ".zip":
+        with zipfile.ZipFile(source_path) as archive:
+            archive.extractall(work_dir)
+        shp_path, prj_path, _ = _collect_shp_files([], work_dir)
+        return shp_path, prj_path, [{"name": source_path.name, "size": int(source_path.stat().st_size)}]
+
+    if suffix != ".shp":
+        raise ValueError("当前服务路径导入仅支持 CSV、SHP 或 ZIP 包")
+
+    prj_path = source_path.with_suffix(".prj")
+    if not prj_path.exists():
+        raise ValueError("SHP 缺少同目录同名 .prj 文件，当前版本要求明确坐标系后再导入")
+
+    file_group = []
+    for sibling_path in sorted(source_path.parent.glob(f"{source_path.stem}.*")):
+        if sibling_path.is_file():
+            file_group.append({"name": sibling_path.name, "size": int(sibling_path.stat().st_size)})
+    return source_path.resolve(), prj_path.resolve(), file_group
+
+
+def _build_transformer_from_prj(prj_path: Path) -> tuple[str | None, Transformer | None, bool]:
     prj_text = prj_path.read_text(encoding="utf-8", errors="ignore").strip()
     if not prj_text:
         raise ValueError("PRJ 文件为空，无法判断坐标系")
 
     upper_text = prj_text.upper()
+    is_projected_crs = any(token in upper_text for token in ["PROJCS[", "PROJCRS[", "PROJECTION[", "CONVERSION["])
 
     if CRS is not None and Transformer is not None:
         source_crs = CRS.from_wkt(prj_text)
-        source_crs_text = source_crs.to_string() or source_crs.name or "UNKNOWN"
+        authority = source_crs.to_authority()
         epsg_code = source_crs.to_epsg()
-        if epsg_code in {4326, 4490}:
-            return source_crs_text, None
-        return source_crs_text, Transformer.from_crs(source_crs, CRS.from_epsg(4326), always_xy=True)
-
-    if any(token in upper_text for token in ["WGS_1984", "WGS 84", 'AUTHORITY["EPSG","4326"]', 'AUTHORITY["EPSG","4490"]', "CGCS2000"]):
-        return "EPSG:4326", None
+        source_crs_text = (
+            (f"{authority[0]}:{authority[1]}" if authority and len(authority) == 2 else "")
+            or (f"EPSG:{epsg_code}" if epsg_code else "")
+            or str(source_crs.name or "UNKNOWN")
+        )
+        if len(source_crs_text) > 64:
+            source_crs_text = str(source_crs.name or "UNKNOWN")[:64]
+        is_geographic_crs = bool(getattr(source_crs, "is_geographic", False))
+        transformer = Transformer.from_crs(source_crs, CRS.from_epsg(4326), always_xy=True)
+        return source_crs_text, transformer, is_geographic_crs
 
     if any(token in upper_text for token in ["PSEUDO-MERCATOR", "WEB_MERCATOR", 'AUTHORITY["EPSG","3857"]', 'AUTHORITY["EPSG","102100"]', 'AUTHORITY["EPSG","900913"]']):
-        return "EPSG:3857", _CallableTransformer(_mercator_to_wgs84)
+        return "EPSG:3857", _CallableTransformer(_mercator_to_wgs84), False
+
+    if not is_projected_crs and any(token in upper_text for token in ["WGS_1984", "WGS 84", 'AUTHORITY["EPSG","4326"]', 'AUTHORITY["EPSG","4490"]', "CGCS2000"]):
+        return "EPSG:4326", None, True
 
     raise ValueError("当前环境缺少 pyproj，无法自动转换该 SHP 的投影；请先转换到 EPSG:4326 后再导入")
 
@@ -363,62 +455,120 @@ def _build_shp_dataset(files: list[UploadedVectorFile], title_override: str | No
     with tempfile.TemporaryDirectory(prefix="vector_import_") as temp_dir:
         work_dir = Path(temp_dir)
         shp_path, prj_path, file_group = _collect_shp_files(files, work_dir)
-        source_crs, transformer = _build_transformer_from_prj(prj_path)
-        reader = shapefile.Reader(str(shp_path))
-        field_names = [field[0] for field in reader.fields[1:]]
+        return _build_shp_dataset_from_paths(
+            shp_path,
+            prj_path,
+            file_group=file_group,
+            title_override=title_override,
+        )
 
-        features: list[ParsedFeature] = []
-        label_field: str | None = None
-        geometry_type: str | None = None
-        for row_index, shape_record in enumerate(reader.iterShapeRecords(), start=1):
-            raw_geometry = shape_record.shape.__geo_interface__
-            if not isinstance(raw_geometry, dict) or not raw_geometry.get("type"):
-                continue
-            transformed_geometry = _transform_geometry(raw_geometry, transformer)
-            current_geometry_type = str(transformed_geometry.get("type") or "").strip() or None
-            if current_geometry_type and geometry_type is None:
-                geometry_type = current_geometry_type
 
-            properties = {
-                field_name: _make_json_safe(value)
-                for field_name, value in zip(field_names, shape_record.record)
-            }
-            if not label_field:
-                label_field = _guess_label_field(properties)
-            if label_field and label_field in properties and "name" not in properties:
-                properties["name"] = properties[label_field]
+def _build_shp_dataset_from_paths(
+    shp_path: Path,
+    prj_path: Path,
+    *,
+    file_group: list[dict[str, Any]],
+    title_override: str | None = None,
+) -> ParsedDataset:
+    source_crs, transformer, is_geographic_crs = _build_transformer_from_prj(prj_path)
+    reader = shapefile.Reader(str(shp_path))
+    field_names = [field[0] for field in reader.fields[1:]]
 
-            bbox = _compute_bbox(transformed_geometry)
-            feature_key = str(properties.get(label_field or "") or f"feature-{row_index}")
-            features.append(
-                ParsedFeature(
-                    feature_key=feature_key,
-                    geometry_type=current_geometry_type or "Unknown",
-                    geometry=transformed_geometry,
-                    properties=properties,
-                    bbox=bbox,
-                    source_row_index=row_index,
-                )
+    features: list[ParsedFeature] = []
+    label_field: str | None = None
+    geometry_type: str | None = None
+    axis_swap_applied = False
+    for row_index, shape_record in enumerate(reader.iterShapeRecords(), start=1):
+        raw_geometry = shape_record.shape.__geo_interface__
+        if not isinstance(raw_geometry, dict) or not raw_geometry.get("type"):
+            continue
+        transformed_geometry = _transform_geometry(raw_geometry, transformer)
+        bbox = _compute_bbox(transformed_geometry)
+
+        if is_geographic_crs and not _bbox_is_lon_lat(bbox):
+            swapped_geometry = _transform_geometry(_swap_geometry_xy(raw_geometry), transformer)
+            swapped_bbox = _compute_bbox(swapped_geometry)
+            if _bbox_is_lon_lat(swapped_bbox):
+                transformed_geometry = swapped_geometry
+                bbox = swapped_bbox
+                axis_swap_applied = True
+
+        if not _bbox_is_lon_lat(bbox):
+            raise ValueError(
+                f"SHP 转换后的坐标超出经纬度范围：第 {row_index} 条要素疑似存在错误轴序或 .prj 定义异常，请校核源数据后重试"
             )
 
-        style_config = default_style_for_geometry(geometry_type, label_field)
-        return ParsedDataset(
-            title=title_override or shp_path.stem,
-            description="由 SHP 数据集导入的矢量图层。",
-            format="shp",
-            source_filename=shp_path.name,
-            source_crs=source_crs,
-            target_crs="EPSG:4326",
-            geometry_type=geometry_type,
+        current_geometry_type = str(transformed_geometry.get("type") or "").strip() or None
+        if current_geometry_type and geometry_type is None:
+            geometry_type = current_geometry_type
+
+        properties = {
+            field_name: _make_json_safe(value)
+            for field_name, value in zip(field_names, shape_record.record)
+        }
+        if not label_field:
+            label_field = _guess_label_field(properties)
+        if label_field and label_field in properties and "name" not in properties:
+            properties["name"] = properties[label_field]
+        feature_key = str(properties.get(label_field or "") or f"feature-{row_index}")
+        features.append(
+            ParsedFeature(
+                feature_key=feature_key,
+                geometry_type=current_geometry_type or "Unknown",
+                geometry=transformed_geometry,
+                properties=properties,
+                bbox=bbox,
+                source_row_index=row_index,
+            )
+        )
+
+    style_config = default_style_for_geometry(geometry_type, label_field)
+    return ParsedDataset(
+        title=title_override or shp_path.stem,
+        description="由 SHP 数据集导入的矢量图层。",
+        format="shp",
+        source_filename=shp_path.name,
+        source_crs=source_crs,
+        target_crs="EPSG:4326",
+        geometry_type=geometry_type,
+        file_group=file_group,
+        extent=_extent_from_features(features),
+        style_config=style_config,
+        metadata={
+            "field_names": field_names,
+            "import_kind": "shapefile",
+            "axis_swap_applied": axis_swap_applied,
+        },
+        features=features,
+        label_field=label_field,
+    )
+
+
+def _normalize_vector_parse_error(exc: Exception) -> ValueError:
+    if isinstance(exc, ValueError):
+        return exc
+    if isinstance(exc, csv.Error):
+        return ValueError("CSV 内容格式无效，无法解析矢量数据")
+    if isinstance(exc, zipfile.BadZipFile):
+        return ValueError("ZIP 压缩包无效，无法解析矢量数据")
+    if isinstance(exc, shapefile.ShapefileException):
+        return ValueError("无法解析 SHP 数据集，请确认 .shp/.shx/.dbf/.prj 文件完整且未损坏")
+    if CRSError is not None and isinstance(exc, CRSError):
+        return ValueError("PRJ 坐标系定义无效，无法解析该 SHP 数据集")
+    if isinstance(exc, OSError):
+        return ValueError("读取矢量源文件失败")
+    return ValueError("矢量数据解析失败")
+
+
+def _build_shp_dataset_from_source_path(source_path: Path, title_override: str | None = None) -> ParsedDataset:
+    with tempfile.TemporaryDirectory(prefix="vector_path_import_") as temp_dir:
+        work_dir = Path(temp_dir)
+        shp_path, prj_path, file_group = _collect_shp_source_path(source_path, work_dir)
+        return _build_shp_dataset_from_paths(
+            shp_path,
+            prj_path,
             file_group=file_group,
-            extent=_extent_from_features(features),
-            style_config=style_config,
-            metadata={
-                "field_names": field_names,
-                "import_kind": "shapefile",
-            },
-            features=features,
-            label_field=label_field,
+            title_override=title_override,
         )
 
 
@@ -426,16 +576,31 @@ def parse_vector_upload(files: list[UploadedVectorFile], title_override: str | N
     if not files:
         raise ValueError("至少需要上传一个文件")
 
-    normalized_names = [str(file_item.filename or "").lower() for file_item in files]
-    if len(files) == 1 and normalized_names[0].endswith(".csv"):
-        return _build_csv_dataset(files, title_override)
-    if any(filename.endswith(".shp") for filename in normalized_names) or (len(files) == 1 and normalized_names[0].endswith(".zip")):
-        return _build_shp_dataset(files, title_override)
-    raise ValueError("当前仅支持 CSV、SHP 组件文件或包含单个 SHP 的 ZIP 包")
+    try:
+        normalized_names = [str(file_item.filename or "").lower() for file_item in files]
+        if len(files) == 1 and normalized_names[0].endswith(".csv"):
+            return _build_csv_dataset(files, title_override)
+        if any(filename.endswith(".shp") for filename in normalized_names) or (len(files) == 1 and normalized_names[0].endswith(".zip")):
+            return _build_shp_dataset(files, title_override)
+        raise ValueError("当前仅支持 CSV、SHP 组件文件或包含单个 SHP 的 ZIP 包")
+    except Exception as exc:
+        raise _normalize_vector_parse_error(exc) from exc
 
 
-def import_vector_dataset(session: Session, files: list[UploadedVectorFile], title_override: str | None = None) -> dict[str, Any]:
-    parsed_dataset = parse_vector_upload(files, title_override)
+def parse_vector_source_path(source_path: str, title_override: str | None = None) -> ParsedDataset:
+    try:
+        resolved_path = Path(str(source_path or "").strip()).expanduser().resolve()
+        suffix = resolved_path.suffix.lower()
+        if suffix == ".csv":
+            return _build_csv_dataset_from_path(resolved_path, title_override)
+        if suffix in {".shp", ".zip"}:
+            return _build_shp_dataset_from_source_path(resolved_path, title_override)
+        raise ValueError("当前服务路径导入仅支持 CSV、SHP 或 ZIP 包")
+    except Exception as exc:
+        raise _normalize_vector_parse_error(exc) from exc
+
+
+def _persist_vector_dataset(session: Session, parsed_dataset: ParsedDataset) -> dict[str, Any]:
     owner_username = get_current_username()
     now = datetime.utcnow()
 
@@ -512,6 +677,20 @@ def import_vector_dataset(session: Session, files: list[UploadedVectorFile], tit
     session.commit()
     session.refresh(dataset)
     return serialize_dataset(session, dataset)
+
+
+def import_vector_dataset(session: Session, files: list[UploadedVectorFile], title_override: str | None = None) -> dict[str, Any]:
+    parsed_dataset = parse_vector_upload(files, title_override)
+    return _persist_vector_dataset(session, parsed_dataset)
+
+
+def import_vector_dataset_from_source_path(
+    session: Session,
+    source_path: str,
+    title_override: str | None = None,
+) -> dict[str, Any]:
+    parsed_dataset = parse_vector_source_path(source_path, title_override)
+    return _persist_vector_dataset(session, parsed_dataset)
 
 
 def serialize_layer(layer: VectorLayer) -> dict[str, Any]:
